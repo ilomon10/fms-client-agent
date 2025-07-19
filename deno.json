@@ -12,6 +12,7 @@
     "@std/streams": "jsr:@std/streams@^1.0.9",
     "commander": "npm:commander@^14.0.0",
     "nanoevents": "npm:nanoevents@^9.1.0",
+    "serialport": "npm:serialport@^12.0.0",
     "socket.io": "https://deno.land/x/socket_io@0.2.1/mod.ts",
     "oak": "jsr:@oak/oak"
   },
