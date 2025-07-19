@@ -1,0 +1,4 @@
+node_modules
+target
+local.db
+config.json
