@@ -15,7 +15,7 @@ export default async function (options?: InitializeOptions) {
           },
           gps: {
             type: "serialport",
-            path: "ttyACM0",
+            path: "/dev/ttyACM0",
           },
           can: {
             type: "network",

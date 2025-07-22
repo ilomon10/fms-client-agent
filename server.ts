@@ -1,18 +1,14 @@
-import http_server from "./src/http-server.ts";
-import io_server from "./src/io-server.ts";
+import { Application } from "./src/app.ts";
+import gpsService from "./src/services/gps.service.ts";
 
-const handler = io_server.handler(async (req) => {
-  return (await http_server.handle(req)) || new Response(null, { status: 404 });
-});
+const app = new Application();
+
+app.configure(gpsService);
 
 export default function serve(options?: { port?: number }) {
-  const { port } = options || {};
-  Deno.serve({
-    handler,
-    port: port || 3000,
-  });
+  app.serve(options);
 }
 
 if (import.meta.main) {
-  serve();
+  app.serve();
 }
