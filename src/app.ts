@@ -43,6 +43,10 @@ export class Application {
     return this._http_server.use(...args);
   }
 
+  io_use(callback: (io_server: IO_Server, app: Application) => void) {
+    return callback(this._io_server, this);
+  }
+
   configure(callback: (app: Application) => void) {
     callback(this);
   }

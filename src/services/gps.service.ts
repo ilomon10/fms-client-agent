@@ -7,7 +7,7 @@ export default function gpsService(app: Application) {
   const router = new Router();
 
   router.get("/api/gps", async (ctx) => {
-    const state = await gps.get();
+    const state = gps.get();
     ctx.response.body = {
       time: state.time,
       latitude: state.lat,
@@ -24,9 +24,18 @@ export default function gpsService(app: Application) {
   });
 
   router.get("/api/gps/raw", async (ctx) => {
-    const state = await gps.get();
+    const state = gps.get();
     ctx.response.body = state;
   });
 
   app.http_use(router.routes());
+
+  app.io_use((io) => {
+    gps.on("data", (data) => {
+      console.log(data);
+      if (data) {
+        io.to("public").emit("/api/gps:get", gps.get());
+      }
+    });
+  });
 }
