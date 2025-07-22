@@ -27,9 +27,13 @@ export default class GPS {
   constructor(options: GPSOptions) {
     this.options = options;
     this.emitter = createNanoEvents<GPSEvents>();
-    this.openPort();
-    if (this.options.auto) {
-      this.start();
+    try {
+      this.openPort();
+      if (this.options.auto) {
+        this.start();
+      }
+    } catch (err) {
+      console.error(err);
     }
   }
 

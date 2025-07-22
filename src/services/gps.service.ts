@@ -6,7 +6,7 @@ const gps = new GPS({ portPath: "/dev/ttyACM0", auto: true });
 export default function gpsService(app: Application) {
   const router = new Router();
 
-  router.get("/api/gps", async (ctx) => {
+  router.get("/api/gps", (ctx) => {
     const state = gps.get();
     ctx.response.body = {
       time: state.time,
@@ -23,7 +23,7 @@ export default function gpsService(app: Application) {
     };
   });
 
-  router.get("/api/gps/raw", async (ctx) => {
+  router.get("/api/gps/raw", (ctx) => {
     const state = gps.get();
     ctx.response.body = state;
   });
