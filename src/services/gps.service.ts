@@ -1,9 +1,15 @@
 import { Application, Router } from "../app.ts";
 import GPS from "../lib/gps/gps.ts";
 
-const gps = new GPS({ portPath: "/dev/ttyACM0", auto: true });
+type GPS_CONFIG = {
+  path: string;
+  type: "serialport";
+};
 
 export default function gpsService(app: Application) {
+  const gpsConfig = app.get<GPS_CONFIG>("gps");
+  const gps = new GPS({ portPath: gpsConfig.path, auto: true });
+
   const router = new Router();
 
   router.get("/api/gps", (ctx) => {

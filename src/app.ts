@@ -1,5 +1,7 @@
+import { platform } from "node:os";
 import { Application as HTTP_Server, Router as HTTP_Router } from "oak";
 import { Server as IO_Server } from "socket.io";
+import os from "node:os";
 
 export { HTTP_Router as Router };
 
@@ -7,6 +9,8 @@ export class Application {
   private _http_server: HTTP_Server;
   private _http_router: HTTP_Router;
   private _io_server: IO_Server;
+
+  private _settings = Object.create({});
 
   constructor() {
     this._http_server = new HTTP_Server();
@@ -16,9 +20,23 @@ export class Application {
   }
 
   setup() {
+    this._open_config_file();
+
     this._http_router.get("/", (ctx) => {
       ctx.response.body = "hello world";
     });
+
+    this._http_router.get("/health", (ctx) => {
+      ctx.response.body = {
+        platform: os.platform(),
+        features: {
+          gps: "OK",
+          gpio: "FAIL",
+          can: "UNSUPPORTED",
+        },
+      };
+    });
+
     this._http_server.use(this._http_router.routes());
     this._http_server.use(this._http_router.allowedMethods());
 
@@ -37,6 +55,24 @@ export class Application {
         console.log(`socket ${socket.id} disconnected due to ${reason}`);
       });
     });
+  }
+
+  public get<T = unknown>(name: string) {
+    return this._settings[name] as T;
+  }
+  public set(name: string, value: unknown) {
+    return (this._settings[name] = value);
+  }
+
+  private _open_config_file() {
+    const decoder = new TextDecoder("utf-8");
+    const configFileBuf = Deno.readFileSync("config.json");
+    const config = JSON.parse(decoder.decode(configFileBuf));
+
+    for (const [key, value] of Object.entries(config)) {
+      this.set(key, value);
+    }
+    console.log(this._settings);
   }
 
   http_use(...args: Parameters<HTTP_Server["use"]>) {
