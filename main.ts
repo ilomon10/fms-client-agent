@@ -1,6 +1,6 @@
 import serve from "./server.ts";
 import { Command, EnumType } from "@cliffy/command";
-import runTui from "./src/tui.ts";
+import runTui from "./src/tui.tsx";
 import initialize from "./src/init.ts";
 
 if (import.meta.main) {
@@ -11,18 +11,15 @@ if (import.meta.main) {
     .usage("<command>")
     .description("FMS I/O Forwarder utilities.")
     .version("0.1.0")
-
     .action(function () {
       this.showHelp();
     })
-
     // Setup Agent
     .command("init")
     .description("Initialize the I/O Agent.")
     .action(() => {
       initialize();
     })
-
     // Update client
     .command("upgrade")
     .description("to Update FMS app client.")
@@ -30,7 +27,6 @@ if (import.meta.main) {
       console.log("Upgrading...");
       console.log("OK");
     })
-
     // Serve Server
     .command("serve")
     .type("serve_command", serve_command)
@@ -43,14 +39,12 @@ if (import.meta.main) {
         serve(options);
       }
     })
-
     // TUI
     .command("tui")
     .description("UI based configuration.")
     .action(() => {
       runTui();
     })
-
     // Read the command line arguments
     .parse(Deno.args);
 }

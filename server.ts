@@ -1,12 +1,10 @@
 import { Application } from "./src/app.ts";
-import gpsService from "./src/services/gps.service.ts";
+import GpsFeature from "./src/features/gps.feature.ts";
 import os from "node:os";
 
 const app = new Application();
 
-if (os.platform() !== "win32") {
-  app.configure(gpsService);
-}
+app.configure(new GpsFeature());
 
 export default function serve(options?: { port?: number }) {
   app.serve(options);

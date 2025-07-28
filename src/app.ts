@@ -1,103 +1,116 @@
-import { platform } from "node:os";
-import { Application as HTTP_Server, Router as HTTP_Router } from "oak";
+import {
+  Application as HTTP_Server,
+  Context,
+  Router as HTTP_Router,
+} from "oak";
 import { Server as IO_Server } from "socket.io";
 import os from "node:os";
+import { Feature } from "./feature.ts";
+import { Service } from "./service.ts";
 
 export { HTTP_Router as Router };
 
-export class Application {
-  private _http_server: HTTP_Server;
-  private _http_router: HTTP_Router;
-  private _io_server: IO_Server;
+// Type guards
+function isFeature(obj: any): obj is Feature {
+  return obj && typeof obj.register === "function" &&
+    typeof obj.status !== "undefined";
+}
 
-  private _settings = Object.create({});
+function isService(obj: any): obj is Service {
+  return obj && typeof obj.init === "function";
+}
+
+export class Application {
+  private _http = new HTTP_Server();
+  private _router = new HTTP_Router();
+  private _io = new IO_Server();
+  private _features: Record<string, Feature> = {};
+  private _services: Record<string, Service> = {};
+  private _settings = new Map<string, unknown>();
 
   constructor() {
-    this._http_server = new HTTP_Server();
-    this._http_router = new HTTP_Router();
-    this._io_server = new IO_Server();
-    this.setup();
+    this.loadConfig();
+    this.registerCore();
   }
 
-  setup() {
-    this._open_config_file();
-
-    this._http_router.get("/", (ctx) => {
-      ctx.response.body = "hello world";
-    });
-
-    this._http_router.get("/health", (ctx) => {
-      ctx.response.body = {
-        platform: os.platform(),
-        features: {
-          gps: "OK",
-          gpio: "FAIL",
-          can: "UNSUPPORTED",
-        },
-      };
-    });
-
-    this._http_server.use(this._http_router.routes());
-    this._http_server.use(this._http_router.allowedMethods());
-
-    this._io_server.on("connection", (socket) => {
-      console.log(`socket ${socket.id} connected`);
-
-      socket.on("authentication", (_socketId, { type }) => {
-        if (type === "private") {
-          socket.join("private");
-        } else {
-          socket.join("public");
-        }
-      });
-
-      socket.on("disconnect", (reason) => {
-        console.log(`socket ${socket.id} disconnected due to ${reason}`);
-      });
-    });
-  }
-
-  public get<T = unknown>(name: string) {
-    return this._settings[name] as T;
-  }
-  public set(name: string, value: unknown) {
-    return (this._settings[name] = value);
-  }
-
-  private _open_config_file() {
-    const decoder = new TextDecoder("utf-8");
-    const configFileBuf = Deno.readFileSync("config.json");
-    const config = JSON.parse(decoder.decode(configFileBuf));
-
-    for (const [key, value] of Object.entries(config)) {
-      this.set(key, value);
+  /** Register a function, Feature, or Service */
+  public configure(
+    fn: ((app: Application) => void | Promise<void>) | Feature | Service,
+  ) {
+    if (typeof fn === "function") {
+      const res = fn(this);
+      if (res instanceof Promise) res.catch(console.error);
+    } else if (isFeature(fn)) {
+      this.useFeature(fn);
+    } else if (isService(fn)) {
+      this.useService(fn);
     }
-    console.log(this._settings);
+    return this;
   }
 
-  http_use(...args: Parameters<HTTP_Server["use"]>) {
-    return this._http_server.use(...args);
+  private useFeature(feature: Feature) {
+    this._features[feature.name] = feature;
+    if (feature.status === "OK") {
+      const res = feature.register(this);
+      if (res instanceof Promise) res.catch(console.error);
+    }
   }
 
-  io_use(callback: (io_server: IO_Server, app: Application) => void) {
-    return callback(this._io_server, this);
+  private useService(service: Service) {
+    this._services[service.name] = service;
+    const res = service.init(this);
+    if (res instanceof Promise) res.catch(console.error);
   }
 
-  configure(callback: (app: Application) => void) {
-    callback(this);
-  }
-
-  serve(options?: { port?: number }) {
-    const handler = this._io_server.handler(async (req) => {
-      return (
-        (await this._http_server.handle(req)) ||
-        new Response(null, { status: 404 })
-      );
+  private registerCore() {
+    this._router.get("/", (ctx) => (ctx.response.body = "hello world"));
+    this._router.get("/health", (ctx) => {
+      const features: Record<string, string> = {};
+      for (const f of Object.values(this._features)) {
+        features[f.name] = f.status;
+      }
+      ctx.response.body = { platform: os.platform(), features };
     });
-    const { port } = options || {};
-    Deno.serve({
-      handler,
-      port: port || 3000,
+    this._http.use(this._router.routes(), this._router.allowedMethods());
+  }
+
+  public httpUse(...args: Parameters<HTTP_Server["use"]>) {
+    this._http.use(...args);
+    return this;
+  }
+
+  public ioUse(fn: (io: IO_Server, app: Application) => void) {
+    fn(this._io, this);
+    return this;
+  }
+
+  public middleware(
+    fn: (ctx: Context, next: () => Promise<unknown>) => void | Promise<void>,
+  ) {
+    this._http.use(fn);
+    return this;
+  }
+
+  public get<T>(key: string): T | undefined {
+    return this._settings.get(key) as T;
+  }
+
+  public set(key: string, val: unknown) {
+    this._settings.set(key, val);
+    return this;
+  }
+
+  private loadConfig() {
+    const raw = Deno.readFileSync("config.json");
+    const cfg = JSON.parse(new TextDecoder().decode(raw));
+    Object.entries(cfg).forEach(([k, v]) => this.set(k, v));
+  }
+
+  public serve(options: { port?: number } = {}) {
+    const handler = this._io.handler(async (req) => {
+      return (await this._http.handle(req)) ||
+        new Response(null, { status: 404 });
     });
+    Deno.serve({ handler, port: options.port ?? 3000 });
   }
 }
