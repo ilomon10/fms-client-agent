@@ -26,9 +26,14 @@ export default class GpsFeature extends Feature {
 
   register(app: Application) {
     this.config = Object.assign({}, app.get<GpsConfigType>("gps"));
+
     let gps = this.gps;
     if (os.platform() != "win32") {
-      gps = new GPS({ portPath: this.config.path, auto: true });
+      try {
+        gps = new GPS({ portPath: this.config.path, auto: true });
+      } catch {
+        this.status = "FAIL";
+      }
     } else {
       this.status = "UNSUPPORTED";
     }

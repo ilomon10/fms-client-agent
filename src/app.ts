@@ -1,23 +1,24 @@
+import os from "node:os";
 import {
   Application as HTTP_Server,
   Context,
   Router as HTTP_Router,
 } from "oak";
 import { Server as IO_Server } from "socket.io";
-import os from "node:os";
 import { Feature } from "./feature.ts";
 import { Service } from "./service.ts";
 
 export { HTTP_Router as Router };
 
-// Type guards
-function isFeature(obj: any): obj is Feature {
-  return obj && typeof obj.register === "function" &&
-    typeof obj.status !== "undefined";
+function isFeature(obj: unknown): obj is Feature {
+  return typeof obj === "object" && obj !== null &&
+    "register" in obj && typeof (obj as Feature).register === "function" &&
+    "status" in obj && typeof (obj as Feature).status !== "undefined";
 }
 
-function isService(obj: any): obj is Service {
-  return obj && typeof obj.init === "function";
+function isService(obj: unknown): obj is Service {
+  return typeof obj === "object" && obj !== null &&
+    "init" in obj && typeof (obj as Service).init === "function";
 }
 
 export class Application {
@@ -33,7 +34,6 @@ export class Application {
     this.registerCore();
   }
 
-  /** Register a function, Feature, or Service */
   public configure(
     fn: ((app: Application) => void | Promise<void>) | Feature | Service,
   ) {
@@ -69,7 +69,11 @@ export class Application {
       for (const f of Object.values(this._features)) {
         features[f.name] = f.status;
       }
-      ctx.response.body = { platform: os.platform(), features };
+      ctx.response.body = {
+        uptime: Deno.osUptime(),
+        platform: os.platform(),
+        features,
+      };
     });
     this._http.use(this._router.routes(), this._router.allowedMethods());
   }

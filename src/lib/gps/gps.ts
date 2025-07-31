@@ -13,6 +13,7 @@ export type GPSOptions = {
 export interface GPSEvents {
   /** fired every time a full fix with lat+lon is parsed */
   data: (state: GPSParser.GPSState) => void;
+  error: (error: Error) => void;
 }
 
 export default class GPS {
@@ -27,13 +28,9 @@ export default class GPS {
   constructor(options: GPSOptions) {
     this.options = options;
     this.emitter = createNanoEvents<GPSEvents>();
-    try {
-      this.openPort();
-      if (this.options.auto) {
-        this.start();
-      }
-    } catch (err) {
-      console.error(err);
+    this.openPort();
+    if (this.options.auto) {
+      this.start();
     }
   }
 

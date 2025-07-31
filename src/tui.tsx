@@ -23,7 +23,6 @@ const Counter = () => {
 export default async function runTui() {
   await withFullScreen(
     <Box>
-      <Box></Box>
       <TitledBox borderStyle="single">
         <TitleText>cpu</TitleText>
         <TitleText alignment="center">
