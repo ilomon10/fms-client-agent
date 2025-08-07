@@ -29,24 +29,25 @@ export default class GpsFeature extends Feature {
   }
 
   register(app: Application) {
-    this.config = Object.assign({}, app.get<GpsConfigType>("gps"));
+    this.config = Object.assign({}, app.get<GpsConfigType>(this.name));
 
-    let gps = this.gps;
     if (this.emulateGPS) {
-      gps = new GPS({
+      this.gps = new GPS({
         portPath: "/dev/null", // dummy since we’re emulating
         emulate: true,
         auto: true,
       });
     } else if (os.platform() != "win32") {
       try {
-        gps = new GPS({ portPath: this.config.path, auto: true });
+        this.gps = new GPS({ portPath: this.config.path, auto: true });
       } catch {
         this.status = "FAIL";
       }
     } else {
       this.status = "UNSUPPORTED";
     }
+
+    const gps = this.gps;
 
     if (!gps) return;
 
