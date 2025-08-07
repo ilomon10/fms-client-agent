@@ -8,6 +8,8 @@ type GpsConfigType = {
   type: "serialport";
 };
 
+const os_platform = os.platform();
+
 export default class GpsFeature extends Feature {
   public name = "gps";
   public status: FeatureStatus;
@@ -15,12 +17,14 @@ export default class GpsFeature extends Feature {
   public router = new Router();
   public gps: GPS | null = null;
 
-  constructor() {
+  constructor(
+    public emulateGPS: boolean = false,
+  ) {
     super();
     this.status = "OK";
     this.config = {
       "type": "serialport",
-      "path": "COM11",
+      "path": os_platform == "win32" ? "COM11" : "/dev/ttyACM0",
     };
   }
 
@@ -28,7 +32,13 @@ export default class GpsFeature extends Feature {
     this.config = Object.assign({}, app.get<GpsConfigType>("gps"));
 
     let gps = this.gps;
-    if (os.platform() != "win32") {
+    if (this.emulateGPS) {
+      gps = new GPS({
+        portPath: "/dev/null", // dummy since we’re emulating
+        emulate: true,
+        auto: true,
+      });
+    } else if (os.platform() != "win32") {
       try {
         gps = new GPS({ portPath: this.config.path, auto: true });
       } catch {
@@ -41,20 +51,7 @@ export default class GpsFeature extends Feature {
     if (!gps) return;
 
     this.router.get("/api/gps", (ctx) => {
-      const state = gps.get();
-      ctx.response.body = {
-        time: state.time,
-        latitude: state.lat,
-        longitude: state.lon,
-        speed: state.speed,
-        track: state.track,
-        altitude: state.alt,
-        is_fixed: state.fix,
-        hdop: state.hdop,
-        pdop: state.pdop,
-        vdop: state.vdop,
-        satellites: state.satsActive,
-      };
+      ctx.response.body = this.get(gps);
     });
 
     this.router.get("/api/gps/raw", (ctx) => {
@@ -67,9 +64,26 @@ export default class GpsFeature extends Feature {
     app.ioUse((io) => {
       gps.on("data", (data) => {
         if (data) {
-          io.to("public").emit("/api/gps:get", gps.get());
+          io.to("public").emit("/api/gps:get", this.get(gps));
         }
       });
     });
+  }
+
+  public get(gps: GPS) {
+    const state = gps.get();
+    return {
+      time: state.time,
+      latitude: state.lat,
+      longitude: state.lon,
+      speed: state.speed,
+      track: state.track,
+      altitude: state.alt,
+      is_fixed: state.fix,
+      hdop: state.hdop,
+      pdop: state.pdop,
+      vdop: state.vdop,
+      satellites: state.satsActive,
+    };
   }
 }

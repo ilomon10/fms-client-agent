@@ -1,4 +1,4 @@
-import { Application } from "../app.ts";
+import { Application, Router } from "../app.ts";
 import { Feature, FeatureStatus } from "../feature.ts";
 import os from "node:os";
 
@@ -11,6 +11,8 @@ export default class GpioFeature extends Feature {
   public name = "gpio";
   public status: FeatureStatus;
   public config: GpioConfigType;
+
+  private _router = new Router();
 
   constructor() {
     super();

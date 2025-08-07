@@ -64,7 +64,7 @@ export class Application {
 
   private registerCore() {
     this._router.get("/", (ctx) => (ctx.response.body = "hello world"));
-    this._router.get("/health", (ctx) => {
+    this._router.get("/api/health", (ctx) => {
       const features: Record<string, string> = {};
       for (const f of Object.values(this._features)) {
         features[f.name] = f.status;
