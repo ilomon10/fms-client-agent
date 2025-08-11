@@ -1,17 +1,56 @@
 import { createNanoEvents, Emitter } from "nanoevents";
 import GPSParser from "gps";
+import { NMEAParser } from "@coremarine/nmea-parser";
 
 export type GPSOptions = {
   auto?: boolean;
-  portPath: string;
+  portPath: string; // still required for "serial", ignored for "gpspipe"
   baudRate?: number;
   emulate?: boolean;
+  source?: "serialport" | "gpspipe"; // NEW
 };
 
 export interface GPSEvents {
   data: (state: GPSParser.GPSState) => void;
+  "data:GSA": (state: GSAValue) => void;
+  "data:GGA": (state: GGAValue) => void;
+  "data:RMC": (state: RMCValue) => void;
   error: (error: Error) => void;
 }
+
+// GGA – Fix Data
+export type GGAValue = {
+  time: string;
+  lat: number;
+  lon: number;
+  alt: number;
+  quality: "fix";
+  hdop: number | null;
+};
+// RMC – Position, Speed, Course, Date
+export type RMCValue = {
+  time: string;
+  speed: number;
+  track: number;
+};
+// ZDA – Time & Date
+export type ZDAValue = {
+  time: string;
+};
+// GSA – DOP and satellites used
+export type GSAValue = {
+  mode: "automatic";
+  fix: "3D" | "2D";
+  satellites: number[];
+  pdop: number;
+  vdop: number;
+};
+
+type StateType = {
+  GGA: GGAValue | null;
+  RMC: RMCValue | null;
+  GSA: GSAValue | null;
+};
 
 export default class GPS {
   private emitter: Emitter<GPSEvents>;
@@ -22,17 +61,57 @@ export default class GPS {
   private running = false;
   private options: GPSOptions;
 
+  private _state: StateType = {
+    GGA: null,
+    RMC: null,
+    GSA: null,
+  };
+
   constructor(options: GPSOptions) {
     this.options = options;
     this.emitter = createNanoEvents<GPSEvents>();
-
-    if (!this.options.emulate) {
+    if (this.options.source === "serialport" && !this.options.emulate) {
       this.openPort();
     }
 
     if (this.options.auto) {
       this.start();
     }
+
+    this.parser.on("GGA", (data) => {
+      const GGA: GGAValue = {
+        time: data.time,
+        lat: data.lat,
+        lon: data.lon,
+        alt: data.alt,
+        hdop: data.hdop,
+        quality: data.quality,
+      };
+      this._state["GGA"] = GGA;
+      this.emitter.emit("data:GGA", GGA);
+    });
+
+    this.parser.on("RMC", (data) => {
+      const RMC: RMCValue = {
+        time: data.time,
+        speed: data.speed,
+        track: data.track,
+      };
+      this._state["RMC"] = RMC;
+      this.emitter.emit("data:RMC", RMC);
+    });
+
+    this.parser.on("GSA", (data) => {
+      const GSA: GSAValue = {
+        mode: data.mode,
+        fix: data.fix,
+        satellites: data.satellites,
+        pdop: data.pdop,
+        vdop: data.vdop,
+      };
+      this._state["GSA"] = GSA;
+      this.emitter.emit("data:GSA", GSA);
+    });
   }
 
   private openPort() {
@@ -45,8 +124,10 @@ export default class GPS {
 
     if (this.options.emulate) {
       this.simulateLoop();
+    } else if (this.options.source === "gpspipe") {
+      this.readFromGpspipe();
     } else {
-      this.readLoop();
+      this.readLoop(); // default: serial
     }
   }
 
@@ -54,22 +135,54 @@ export default class GPS {
     this.running = false;
     try {
       this.port?.close();
-    } catch {}
+    } catch {
+      console.log("ERROR");
+    }
   }
 
   private async readLoop() {
     if (!this.port) return;
-
     while (this.running) {
       const n = await this.port.read(this.buffer);
-      if (n === null) break;
+      if (n === null) continue;
       const chunk = this.decoder.decode(this.buffer.subarray(0, n));
       try {
         this.parser.updatePartial(chunk);
         this.emitter.emit("data", this.parser.state);
       } catch (err) {
+        console.log("ERROR");
         this.emitter.emit("error", err as Error);
       }
+    }
+  }
+
+  private async readFromGpspipe() {
+    try {
+      const cmd = new Deno.Command("gpspipe", {
+        args: ["-r"], // -r = raw NMEA
+        stdout: "piped",
+        stderr: "piped",
+      });
+
+      const child = cmd.spawn();
+      const reader = child.stdout.getReader();
+      const decoder = new TextDecoder();
+
+      while (this.running) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        try {
+          this.parser.updatePartial(chunk);
+          this.emitter.emit("data", this.parser.state);
+        } catch (err) {
+          this.emitter.emit("error", err as Error);
+        }
+      }
+
+      reader.releaseLock();
+    } catch (err) {
+      this.emitter.emit("error", err as Error);
     }
   }
 
@@ -104,6 +217,14 @@ export default class GPS {
     }
   }
 
+  get_state() {
+    return {
+      ...this._state.RMC,
+      ...this._state.GSA,
+      ...this._state.GGA,
+    };
+  }
+
   get() {
     return this.parser.state;
   }
@@ -123,8 +244,9 @@ export default class GPS {
 
 if (import.meta.main) {
   const gps = new GPS({
-    portPath: "/dev/null", // dummy since we’re emulating
-    emulate: true,
+    portPath: "/dev/ttyACM0",
+    // emulate: true,
+    source: "gpspipe",
     auto: true,
   });
 
@@ -141,4 +263,5 @@ if (import.meta.main) {
   gps.on("error", (err) => {
     console.error("Error parsing mock data:", err);
   });
+  console.log("INITIALIZE OK!");
 }

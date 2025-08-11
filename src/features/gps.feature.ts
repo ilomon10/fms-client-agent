@@ -5,7 +5,7 @@ import os from "node:os";
 
 type GpsConfigType = {
   path: string;
-  type: "serialport";
+  type: "serialport" | "gpspipe";
 };
 
 const os_platform = os.platform();
@@ -39,12 +39,19 @@ export default class GpsFeature extends Feature {
       });
     } else if (os.platform() != "win32") {
       try {
-        this.gps = new GPS({ portPath: this.config.path, auto: true });
-      } catch {
+        this.gps = new GPS({
+          portPath: this.config.path,
+          source: this.config.type,
+          auto: true,
+        });
+        console.log("GPS: OK");
+      } catch (err) {
         this.status = "FAIL";
+        console.log("GPS: FAIL", err);
       }
     } else {
       this.status = "UNSUPPORTED";
+      console.log("GPS: UNSUPPORTED");
     }
 
     const gps = this.gps;
@@ -63,16 +70,20 @@ export default class GpsFeature extends Feature {
     app.httpUse(this.router.routes());
 
     app.ioUse((io) => {
-      gps.on("data", (data) => {
+      gps.on("data:GGA", (data) => {
         if (data) {
-          io.to("public").emit("/api/gps:get", this.get(gps));
+          const result = this.get(gps);
+          io.emit("/api/gps:get", result);
+          if (result.is_fixed) {
+            io.emit("/api/gps/fixed:get", result);
+          }
         }
       });
     });
   }
 
   public get(gps: GPS) {
-    const state = gps.get();
+    const state = gps.get_state();
     return {
       time: state.time,
       latitude: state.lat,
@@ -80,11 +91,12 @@ export default class GpsFeature extends Feature {
       speed: state.speed,
       track: state.track,
       altitude: state.alt,
-      is_fixed: state.fix,
+      is_fixed: state.quality,
+      fixed_type: state.fix,
       hdop: state.hdop,
-      pdop: state.pdop,
       vdop: state.vdop,
-      satellites: state.satsActive,
+      pdop: state.pdop,
+      satellites: state.satellites,
     };
   }
 }
