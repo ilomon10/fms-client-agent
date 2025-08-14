@@ -13,11 +13,14 @@ export class CreateStore<
   Data = Partial<Result>,
   PatchData = Data,
   FindResult = Paginated<Result>,
-  P extends { query?: Record<string, any> } = Params
+  P extends { query?: Record<string, any> } = Params,
 > {
   public db: DatabaseSync;
 
-  constructor(public name: string, schema: SchemaDefinition) {
+  constructor(
+    public name: string,
+    schema: SchemaDefinition,
+  ) {
     this.db = new DatabaseSync("local.db");
 
     const columns = Object.entries(schema)
@@ -61,7 +64,7 @@ export class CreateStore<
     const rows = stmt.all(...values);
 
     const countStmt = this.db.prepare(
-      `SELECT COUNT(*) as total FROM ${this.name}`
+      `SELECT COUNT(*) as total FROM ${this.name}`,
     );
     const countRow = countStmt.get() as { total: number } | undefined;
     const count = countRow?.total ?? 0;
@@ -73,6 +76,35 @@ export class CreateStore<
       data: rows,
     } as FindResult;
   }
+
+  // async findOne(params?: P): Promise<Result> {
+  //   const limit = (params?.query?.$limit as number) ?? 10;
+  //   const skip = (params?.query?.$skip as number) ?? 0;
+  //
+  //   let sql = `SELECT * FROM ${this.name}`;
+  //   const conditions: string[] = [];
+  //   const values: any[] = [];
+  //
+  //   if (params?.query) {
+  //     for (const [key, value] of Object.entries(params.query)) {
+  //       if (key === "$limit" || key === "$skip") continue;
+  //       conditions.push(`${key} = ?`);
+  //       values.push(value);
+  //     }
+  //   }
+  //
+  //   if (conditions.length) {
+  //     sql += " WHERE " + conditions.join(" AND ");
+  //   }
+  //
+  //   sql += ` LIMIT ? OFFSET ?`;
+  //   values.push(limit, skip);
+  //
+  //   const stmt = this.db.prepare(sql);
+  //   const rows = stmt.all(...values);
+  //
+  //   return rows[0];
+  // }
 
   async get(id: Id, _params?: P): Promise<Result> {
     const stmt = this.db.prepare(`SELECT * FROM ${this.name} WHERE id = ?`);
@@ -92,7 +124,7 @@ export class CreateStore<
       const values = keys.map((key) => (item as any)[key]);
 
       const stmt = this.db.prepare(
-        `INSERT INTO ${this.name} (${keys.join(", ")}) VALUES (${placeholders})`
+        `INSERT INTO ${this.name} (${keys.join(", ")}) VALUES (${placeholders})`,
       );
 
       stmt.run(...values);
@@ -116,7 +148,7 @@ export class CreateStore<
     const values = [...entries.map(([_, value]) => value), id];
 
     const stmt = this.db.prepare(
-      `UPDATE ${this.name} SET ${updates}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+      `UPDATE ${this.name} SET ${updates}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
     );
     stmt.run(...values);
 

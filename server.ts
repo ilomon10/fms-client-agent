@@ -5,10 +5,12 @@ import GpioFeature from "./src/features/gpio.feature.ts";
 import GpsFeature from "./src/features/gps.feature.ts";
 import NetworkFeature from "./src/features/network.feature.ts";
 import TrackerFeature from "./src/features/tracker.feature.ts";
+import { FetcherFeature } from "./src/features/fetcher.feature.ts";
 
 export default function serve(options?: { port?: number }): Application {
   const app = new Application();
   const platform = os.platform();
+  app.configure(new FetcherFeature());
   app.configure(new NetworkFeature());
   app.configure(new CanFeature());
   app.configure(new GpioFeature());
