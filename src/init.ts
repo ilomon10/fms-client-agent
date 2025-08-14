@@ -20,10 +20,13 @@ export default async function (options?: InitializeOptions) {
           can: {
             type: "network",
           },
+          network: {
+            interface: "wlo1",
+          },
         },
         null,
-        2
-      )
+        2,
+      ),
     );
     console.log("`config.json` file was created");
   }

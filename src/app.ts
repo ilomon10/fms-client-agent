@@ -95,6 +95,10 @@ export class Application {
     return this;
   }
 
+  public feature(name: string) {
+    return this._features[name];
+  }
+
   public get<T>(key: string): T | undefined {
     return this._settings.get(key) as T;
   }
