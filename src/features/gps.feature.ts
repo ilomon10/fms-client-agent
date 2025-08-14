@@ -2,6 +2,7 @@ import { Application, Router } from "../app.ts";
 import { Feature, FeatureStatus } from "../feature.ts";
 import GPS from "../lib/gps/gps.ts";
 import os from "node:os";
+import type NetworkFeature from "./network.feature.ts";
 
 type GpsConfigType = {
   path: string;
@@ -59,7 +60,7 @@ export default class GpsFeature extends Feature {
     if (!gps) return;
 
     this.router.get("/api/gps", (ctx) => {
-      ctx.response.body = this.get(gps);
+      ctx.response.body = this.get();
     });
 
     this.router.get("/api/gps/raw", (ctx) => {
@@ -70,10 +71,25 @@ export default class GpsFeature extends Feature {
     app.httpUse(this.router.routes());
 
     app.ioUse((io) => {
+      io.on('connection', (socket) => {
+        console.log("connect:", socket.id);
+      });
+      const network = app.feature("network") as NetworkFeature;
       gps.on("data:GGA", (data) => {
         if (data) {
-          const result = this.get(gps);
+          const result = this.get();
           io.emit("/api/gps:get", result);
+          io.emit("onMove", {
+            network: {
+              ip: network.get()?.address,
+              mac: network.get()?.mac,
+            },
+            track: result.track,
+            lat: result.latitude,
+            lon: result.longitude,
+            speed: result.speed,
+            time: result.time,
+          });
           if (result.is_fixed) {
             io.emit("/api/gps/fixed:get", result);
           }
@@ -82,8 +98,8 @@ export default class GpsFeature extends Feature {
     });
   }
 
-  public get(gps: GPS) {
-    const state = gps.get_state();
+  public get() {
+    const state = (this.gps as GPS).get_state();
     return {
       time: state.time,
       latitude: state.lat,
