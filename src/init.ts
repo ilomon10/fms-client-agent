@@ -1,9 +1,11 @@
+import { LocalModels } from "./lib/db/sequelize.ts";
 export type InitializeOptions = {};
 
 export default async function (options?: InitializeOptions) {
   try {
     await Deno.readTextFile("config.json");
     console.log("`config.json` file was already exsist");
+    const _d = new LocalModels({ sync: true, alter: true });
   } catch {
     await Deno.writeTextFile(
       "config.json",
@@ -12,7 +14,7 @@ export default async function (options?: InitializeOptions) {
           server: {
             host: "127.0.0.1",
             port: 3000,
-            apiKey: ""
+            apiKey: "",
           },
           gps: {
             type: "serialport",
@@ -25,8 +27,8 @@ export default async function (options?: InitializeOptions) {
             interface: "wlo1",
           },
           tracker: {
-            host: "http://127.0.0.1:8080"
-          }
+            host: "http://127.0.0.1:8080",
+          },
         },
         null,
         2,
