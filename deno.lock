@@ -31,12 +31,15 @@
     "jsr:@std/streams@^1.0.9": "1.0.10",
     "jsr:@std/text@~1.0.7": "1.0.15",
     "npm:@coremarine/nmea-parser@^2.1.3": "2.1.3_valibot@1.1.0",
+    "npm:@turf/turf@*": "7.2.0",
     "npm:@turf/turf@^7.2.0": "7.2.0",
     "npm:@types/node@*": "22.15.15",
     "npm:@types/react@19": "19.1.8",
     "npm:axios@*": "1.11.0",
     "npm:axios@^1.11.0": "1.11.0",
     "npm:dayjs@^1.11.13": "1.11.13",
+    "npm:geojson@*": "0.5.0",
+    "npm:geojson@0.5": "0.5.0",
     "npm:gps@~0.7.4": "0.7.4",
     "npm:ink@^6.0.1": "6.0.1_react@19.1.0",
     "npm:nanoevents@^9.1.0": "9.1.0",
@@ -2047,6 +2050,9 @@
         "rbush@2.0.2"
       ]
     },
+    "geojson@0.5.0": {
+      "integrity": "sha512-/Bx5lEn+qRF4TfQ5aLu6NH+UKtvIv7Lhc487y/c8BdludrCTpiWf9wyI0RTyqg49MFefIAvFDuEi5Dfd/zgNxQ=="
+    },
     "get-east-asian-width@1.3.0": {
       "integrity": "sha512-vpeMIQKxczTD/0s2CdEWHcb0eeJe6TFjxb+J5xgX7hScxqrGuyjmv4c1D4A/gelKfyox0gJJwIHF+fLjeaM8kQ=="
     },
@@ -2720,6 +2726,7 @@
       "npm:@types/react@19",
       "npm:axios@^1.11.0",
       "npm:dayjs@^1.11.13",
+      "npm:geojson@0.5",
       "npm:gps@~0.7.4",
       "npm:ink@^6.0.1",
       "npm:nanoevents@^9.1.0",

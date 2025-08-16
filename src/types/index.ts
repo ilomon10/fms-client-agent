@@ -1,3 +1,5 @@
+import { GeoJSONProperties, Geometry } from "npm:geojson";
+
 export type OkResponse<T> = {
   data: T;
   elapsedTime: number;
@@ -22,7 +24,7 @@ export type EquipmentTypes =
 
 export type EquipmentAttributes = {
   name: string;
-  category: EquipmentTypes | null;
+  category: EquipmentTypes;
   class: string;
   commdate: string;
   default_act: string | null;
@@ -42,4 +44,36 @@ export type EquipmentAttributes = {
   fuel_capacity: number;
   ownership_type: "Non-SMA" | "SMA";
   truck_factor: number;
+  tonnes_per_hour: number;
+} & BaseAttributes;
+
+export type LocationType =
+  | "Loading Site"
+  | "Dumping Site"
+  | "Geo Fence"
+  | "Line"
+  | "General";
+
+export type LocationGeoJSONProperties = {
+  waiting_radius: number;
+  spotting_radius: number;
+  departure_radius: number;
+  loading_radius: number;
+  disposal_radius: number;
+  dumping_departure_radius: number;
+  tipping_radius: number;
+  name?: string;
+  category?: LocationType;
+  id?: number;
+  area_name?: string;
+  code?: string;
+} & GeoJSONProperties;
+
+export type LocationAttributes = {
+  name: string;
+  code: string;
+  area_name: string;
+  geojson: Geometry;
+  category: LocationType;
+  properties: LocationGeoJSONProperties;
 } & BaseAttributes;

@@ -4,14 +4,20 @@ import {
   createEquipmentModel,
   EquipmentInstance,
 } from "../../schemas/equipment.sequelize.ts";
+import {
+  createLocationModel,
+  LocationInstance,
+} from "../../schemas/location.sequelize.ts";
 
 const sequelize = new Sequelize({
   dialect: "sqlite",
   storage: path.resolve("local.db"),
+  logging: Deno.env.get("DENO_ENV") === "development",
 });
 
 export type ModelInstances = {
   Equipment: EquipmentInstance;
+  Location: LocationInstance;
 };
 
 export class LocalModels {
@@ -27,6 +33,7 @@ export class LocalModels {
   }) {
     this.models = {
       Equipment: createEquipmentModel(sequelize),
+      Location: createLocationModel(sequelize),
     };
 
     if (sync) {
