@@ -12,6 +12,7 @@ export default async function (options?: InitializeOptions) {
           server: {
             host: "127.0.0.1",
             port: 3000,
+            apiKey: ""
           },
           gps: {
             type: "serialport",
@@ -23,6 +24,9 @@ export default async function (options?: InitializeOptions) {
           network: {
             interface: "wlo1",
           },
+          tracker: {
+            host: "http://127.0.0.1:8080"
+          }
         },
         null,
         2,

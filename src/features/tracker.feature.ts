@@ -4,7 +4,11 @@ import os from "node:os";
 import GpsFeature from "./gps.feature.ts";
 import GPS from "../lib/gps/gps.ts";
 import { TrackerClient } from "../lib/tracker/tracker.ts";
+import * as turf from "npm:@turf/turf";
 import type NetworkFeature from "./network.feature.ts";
+import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
+import { getNearestLocations } from "../helpers/geofence.ts";
+import { memoize } from "../helpers/memo.ts";
 
 type TrackerConfigType = {
   host: string;
@@ -17,16 +21,19 @@ export default class TrackerFeature extends Feature {
   public router = new Router();
 
   private _trackerClient: TrackerClient | null = null;
+  private _models: ModelInstances;
 
   constructor() {
     super();
     this.status = "OK";
     this.config = {
-      "host": "127.0.0.1",
+      host: "127.0.0.1",
     };
+    const sync = Deno.env.get("DENO_ENV") === "development";
+    this._models = new LocalModels({ sync }).models;
   }
 
-  register(app: Application) {
+  async register(app: Application) {
     let gps: GPS | null = null;
     this.config = Object.assign({}, app.get<TrackerConfigType>(this.name));
 
@@ -34,6 +41,7 @@ export default class TrackerFeature extends Feature {
     if (this._trackerClient === null) {
       throw new Error(`Tracker Client not available`);
     }
+    const { Location } = this._models;
 
     if (os.platform() != "win32") {
       try {
@@ -53,19 +61,44 @@ export default class TrackerFeature extends Feature {
     }
 
     if (!gps) return;
+    const locations = await Location.findAll({ logging: false });
 
     app.ioUse((io) => {
       const network = app.feature("network") as NetworkFeature;
       gps.on("data:GGA", async (data) => {
         if (data) {
+          // console.log("here inside if data");
           const result = gps.get_state();
-          if (typeof result.speed !== "undefined" && result.speed > 0.6) {
-            const bb = await this._trackerClient?.push({
-              ...result,
-              ip: network.get()?.address,
-              mac: network.get()?.mac,
-            });
-            console.log(bb);
+
+          if (typeof result.speed !== "undefined" && result.speed > 0.3) {
+            let nearestLocation: string | null = null;
+            try {
+              const currentLocation = turf.point([
+                result.lon ?? 0,
+                result.lat ?? 0,
+              ]);
+
+              const nearestLocations = getNearestLocations({
+                locations,
+                distanceThreshold: 20,
+                currentLocation,
+              });
+
+              if (nearestLocations.length > 0) {
+                const [loc] = nearestLocations;
+                nearestLocation = loc.name;
+
+                // console.log("nearest loc:", loc.name);
+              }
+              const bb = await this._trackerClient?.push({
+                ...result,
+                ip: network.get()?.address,
+                mac: network.get()?.mac,
+                location_name: nearestLocation,
+              });
+            } catch {
+              // TODO: save to local.db
+            }
           }
         }
       });

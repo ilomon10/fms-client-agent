@@ -11,7 +11,7 @@ export class Fetcher {
   constructor({ baseUrl, apiKey }: ConstructorArgs) {
     this.baseUrl = baseUrl;
     this.fetcherInstance = axios.create({
-      baseURL: baseUrl,
+      baseURL: this.baseUrl,
       headers: {
         "x-api-key": apiKey,
       },
