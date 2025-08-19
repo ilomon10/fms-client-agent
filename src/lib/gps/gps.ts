@@ -1,6 +1,5 @@
 import { createNanoEvents, Emitter } from "nanoevents";
 import GPSParser from "gps";
-import { NMEAParser } from "@coremarine/nmea-parser";
 
 export type GPSOptions = {
   auto?: boolean;
@@ -46,7 +45,7 @@ export type GSAValue = {
   vdop: number;
 };
 
-type StateType = {
+export type StateType = {
   GGA: GGAValue | null;
   RMC: RMCValue | null;
   GSA: GSAValue | null;
@@ -70,6 +69,7 @@ export default class GPS {
   constructor(options: GPSOptions) {
     this.options = options;
     this.emitter = createNanoEvents<GPSEvents>();
+    // this._redisClient.connect()
     if (this.options.source === "serialport" && !this.options.emulate) {
       this.openPort();
     }
@@ -88,6 +88,7 @@ export default class GPS {
         quality: data.quality,
       };
       this._state["GGA"] = GGA;
+      // await this._redisClient.hSet('GGA', GGA);
       this.emitter.emit("data:GGA", GGA);
     });
 
@@ -98,6 +99,7 @@ export default class GPS {
         track: data.track,
       };
       this._state["RMC"] = RMC;
+      // await this._redisClient.hSet('RMC', RMC);
       this.emitter.emit("data:RMC", RMC);
     });
 
@@ -121,6 +123,8 @@ export default class GPS {
   start() {
     if (this.running) return;
     this.running = true;
+
+    // await this._redisClient.connect();
 
     if (this.options.emulate) {
       this.simulateLoop();
@@ -218,6 +222,7 @@ export default class GPS {
   }
 
   get_state() {
+    // this._redisClient.hGetAll("currentPosq")
     return {
       ...this._state.RMC,
       ...this._state.GSA,
