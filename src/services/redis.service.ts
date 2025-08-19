@@ -37,26 +37,7 @@ export class RedisService extends Service {
     return this.client.connect();
   }
 
-  async set<T extends RedisJSON>(
-    key: string,
-    path: RedisArgument,
-    value: T,
-  ) {
+  async set<T extends RedisJSON>(key: string, path: RedisArgument, value: T) {
     return await this.client.json.set(key, path, value);
-  }
-
-  hashSet(key: string, value: any) {
-    return this.client;
-  }
-
-  async get<T extends RedisJSON>(key: string, path?: RedisArgument) {
-    return await (<T>this.client.json.get(key, path));
-  }
-  async hSet<T extends Record<string, any>>(key: string, value: T) {
-    return await this.client.hSet(key, value);
-  }
-
-  async hGetAll<T extends Record<string, any>>(key: string) {
-    return await (<T>this.client.hGetAll(key));
   }
 }
