@@ -5,7 +5,7 @@ export default async function (options?: InitializeOptions) {
   try {
     await Deno.readTextFile("config.json");
     console.log("`config.json` file was already exsist");
-    const _d = new LocalModels({ sync: true, alter: true });
+    const _d = new LocalModels({ sync: true });
   } catch {
     await Deno.writeTextFile(
       "config.json",
@@ -28,6 +28,9 @@ export default async function (options?: InitializeOptions) {
           },
           tracker: {
             host: "http://127.0.0.1:8080",
+          },
+          redis: {
+            url: "127.0.0.1:6379",
           },
         },
         null,

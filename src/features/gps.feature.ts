@@ -18,18 +18,16 @@ export default class GpsFeature extends Feature {
   public router = new Router();
   public gps: GPS | null = null;
 
-  constructor(
-    public emulateGPS: boolean = false,
-  ) {
+  constructor(public emulateGPS: boolean = false) {
     super();
     this.status = "OK";
     this.config = {
-      "type": "serialport",
-      "path": os_platform == "win32" ? "COM11" : "/dev/ttyACM0",
+      type: "serialport",
+      path: os_platform == "win32" ? "COM11" : "/dev/ttyACM0",
     };
   }
 
-  register(app: Application) {
+  async register(app: Application) {
     this.config = Object.assign({}, app.get<GpsConfigType>(this.name));
 
     if (this.emulateGPS) {
@@ -43,8 +41,9 @@ export default class GpsFeature extends Feature {
         this.gps = new GPS({
           portPath: this.config.path,
           source: this.config.type,
-          auto: true,
+          // auto: true,
         });
+        await this.gps.start();
         console.log("GPS: OK");
       } catch (err) {
         this.status = "FAIL";
@@ -71,7 +70,7 @@ export default class GpsFeature extends Feature {
     app.httpUse(this.router.routes());
 
     app.ioUse((io) => {
-      io.on('connection', (socket) => {
+      io.on("connection", (socket) => {
         console.log("connect:", socket.id);
       });
       const network = app.feature("network") as NetworkFeature;

@@ -8,6 +8,10 @@ import {
   createLocationModel,
   LocationInstance,
 } from "../../schemas/location.sequelize.ts";
+import {
+  createDelayedDataModel,
+  DelayedDataInstance,
+} from "../../schemas/delayed-data.sequelize.ts";
 
 const sequelize = new Sequelize({
   dialect: "sqlite",
@@ -18,6 +22,7 @@ const sequelize = new Sequelize({
 export type ModelInstances = {
   Equipment: EquipmentInstance;
   Location: LocationInstance;
+  DelayedData: DelayedDataInstance;
 };
 
 export class LocalModels {
@@ -34,6 +39,7 @@ export class LocalModels {
     this.models = {
       Equipment: createEquipmentModel(sequelize),
       Location: createLocationModel(sequelize),
+      DelayedData: createDelayedDataModel(sequelize),
     };
 
     if (sync) {

@@ -21,4 +21,12 @@ export class Fetcher {
   public get<T>(endpoint: string, opts?: AxiosRequestConfig) {
     return this.fetcherInstance.get<T>(endpoint, opts);
   }
+
+  public post<Result, Data>(
+    endpoint: string,
+    data: Data,
+    opts?: AxiosRequestConfig,
+  ) {
+    return this.fetcherInstance.post<Result>(endpoint, data, opts);
+  }
 }

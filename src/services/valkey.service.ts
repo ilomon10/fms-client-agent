@@ -1,6 +1,6 @@
 import { Application } from "../app.ts";
 import { Service } from "../service.ts";
-import { createClient, RedisArgument, RedisClientType, RedisJSON } from "redis";
+import { GlideClient } from "npm:@valkey/valkey-glide";
 
 export type RedisConfig = {
   url: string;
@@ -8,20 +8,21 @@ export type RedisConfig = {
 
 export class RedisService extends Service {
   public name = "redis";
-  public client: RedisClientType;
+  public client: GlideClient;
 
   constructor() {
     super();
-    this.client = createClient({
-      modules: {},
-    });
   }
 
-  init(app: Application) {
+  async init(app: Application) {
+    const client = await GlideClient.createClient({
+      addresses: [{ host: "localhost", port: 6379 }],
+    });
+    this.client = client;
     // const config = app.get<RedisConfig>("redis")!;
     // await this.client.connect();
     // store client for other services
-    app.set("redisClient", this.client);
+    app.set("glideClient", this.client);
     // attach middleware to context
     app.middleware(async (ctx, next) => {
       ctx.state.redis = this.client;
@@ -29,19 +30,7 @@ export class RedisService extends Service {
     });
   }
 
-  async register() {
-    await this.connect();
-  }
-
-  connect() {
-    return this.client.connect();
-  }
-
-  async set<T extends RedisJSON>(
-    key: string,
-    path: RedisArgument,
-    value: T,
-  ) {
+  async set<T extends RedisJSON>(key: string, path: RedisArgument, value: T) {
     return await this.client.json.set(key, path, value);
   }
 
