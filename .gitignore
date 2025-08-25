@@ -4,3 +4,4 @@ local.db
 config.json
 .histfile
 *.db
+*.db-journal

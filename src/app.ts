@@ -7,35 +7,70 @@ import {
 import { Server as IO_Server } from "socket.io";
 import { Feature } from "./feature.ts";
 import { Service } from "./service.ts";
+import { Handler } from "./handler.ts";
+import { DefaultEvents, Emitter } from "nanoevents";
+import { EventEmitter } from "./lib/event-emitter/event-emitter.ts";
+import { EventListener } from "./listener.ts";
 
 export { HTTP_Router as Router };
 
 function isFeature(obj: unknown): obj is Feature {
-  return typeof obj === "object" && obj !== null &&
-    "register" in obj && typeof (obj as Feature).register === "function" &&
-    "status" in obj && typeof (obj as Feature).status !== "undefined";
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    "register" in obj &&
+    typeof (obj as Feature).register === "function" &&
+    "status" in obj &&
+    typeof (obj as Feature).status !== "undefined"
+  );
 }
 
 function isService(obj: unknown): obj is Service {
-  return typeof obj === "object" && obj !== null &&
-    "init" in obj && typeof (obj as Service).init === "function";
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    "init" in obj &&
+    typeof (obj as Service).init === "function"
+  );
+}
+
+function isHandler(obj: unknown): obj is Handler {
+  return obj instanceof Handler;
+}
+
+function isListener(obj: unknown): obj is EventListener {
+  return obj instanceof EventListener;
 }
 
 export class Application {
   private _http = new HTTP_Server();
   private _router = new HTTP_Router();
-  private _io = new IO_Server();
+  private _io = new IO_Server({
+    cors: {
+      // origin: "http://localhost:5173"
+      origin: /^http:\/\/localhost:\d+$/,
+    },
+  });
   private _features: Record<string, Feature> = {};
   private _services: Record<string, Service> = {};
+  private _handlers: Record<string, Handler> = {};
   private _settings = new Map<string, unknown>();
+  private _listeners: Record<string, EventListener> = {};
+  public emitter: Emitter<DefaultEvents>;
 
   constructor() {
     this.loadConfig();
     this.registerCore();
+    this.emitter = new EventEmitter().emitter;
   }
 
   public configure(
-    fn: ((app: Application) => void | Promise<void>) | Feature | Service,
+    fn:
+      | ((app: Application) => void | Promise<void>)
+      | Feature
+      | Service
+      | Handler
+      | EventListener,
   ) {
     if (typeof fn === "function") {
       const res = fn(this);
@@ -44,7 +79,12 @@ export class Application {
       this.useFeature(fn);
     } else if (isService(fn)) {
       this.useService(fn);
+    } else if (isHandler(fn)) {
+      this.useHandler(fn);
+    } else if (isListener(fn)) {
+      this.useListener(fn);
     }
+
     return this;
   }
 
@@ -59,6 +99,18 @@ export class Application {
   private useService(service: Service) {
     this._services[service.name] = service;
     const res = service.init(this);
+    if (res instanceof Promise) res.catch(console.error);
+  }
+
+  private useHandler(handler: Handler) {
+    this._handlers[handler.name] = handler;
+    const res = handler.register(this);
+    if (res instanceof Promise) res.catch(console.error);
+  }
+
+  private useListener(listener: EventListener) {
+    this._listeners[listener.name] = listener;
+    const res = listener.init(this);
     if (res instanceof Promise) res.catch(console.error);
   }
 
@@ -116,8 +168,9 @@ export class Application {
 
   public serve(options: { port?: number } = {}) {
     const handler = this._io.handler(async (req) => {
-      return (await this._http.handle(req)) ||
-        new Response(null, { status: 404 });
+      return (
+        (await this._http.handle(req)) || new Response(null, { status: 404 })
+      );
     });
     Deno.serve({ handler, port: options.port ?? 3000 });
   }

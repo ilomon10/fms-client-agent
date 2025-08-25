@@ -7,6 +7,7 @@ import {
   OkResponse,
 } from "../types/index.ts";
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
+import { GlideClient } from "@valkey/valkey-glide";
 
 export type ServerConfig = {
   host: string;
@@ -28,7 +29,9 @@ export class FetcherFeature extends Feature {
 
   async register(_: Application) {
     const serverConfig = _.get<ServerConfig>("server");
+    const valkey = _.get<GlideClient>("glideClient");
     if (typeof serverConfig === "undefined") return;
+    if (typeof valkey === "undefined") return;
 
     this.baseUrl = `http://${serverConfig.host}:${serverConfig.port}`;
     const fetcher = new Fetcher({
@@ -47,6 +50,8 @@ export class FetcherFeature extends Feature {
     );
 
     const { Location, Equipment } = this.models;
+
+    await valkey?.hset("data:locations", [{ field: "test", value: "value" }]);
 
     await Promise.allSettled(
       locations.map(async (loc) => {

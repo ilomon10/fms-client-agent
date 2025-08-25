@@ -88,6 +88,7 @@ export default class GpsFeature extends Feature {
             lon: result.longitude,
             speed: result.speed,
             time: result.time,
+            fix: result.fixed_type,
           });
           if (result.is_fixed) {
             io.emit("/api/gps/fixed:get", result);
