@@ -45,6 +45,7 @@ export default class TrackerFeature extends Feature {
     let gps: GPS | null = null;
     this.config = Object.assign({}, app.get<TrackerConfigType>(this.name));
 
+    const hostname = Deno.hostname();
     this._trackerClient = new TrackerClient(this.config.host);
     if (this._trackerClient === null) {
       throw new Error(`Tracker Client not available`);
@@ -104,11 +105,12 @@ export default class TrackerFeature extends Feature {
                 // console.log("nearest loc:", loc.name);
               }
 
-              const _bb = await this._trackerClient?.push({
+              await this._trackerClient?.push({
                 ...result,
                 ip: network.get()?.address,
                 mac: network.get()?.mac,
                 location_name: nearestLocation,
+                hostname,
               });
             } catch (e) {
               if (axios.isAxiosError(e)) {
