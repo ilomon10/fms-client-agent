@@ -8,6 +8,7 @@ export type RedisConfig = {
 
 export class ValkeyService extends Service {
   public name = "redis";
+  // @ts-ignore: because the initialize process is async so i wrap the init inside init method
   public client: GlideClient;
 
   constructor() {
