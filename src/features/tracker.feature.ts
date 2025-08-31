@@ -121,7 +121,6 @@ export default class TrackerFeature extends Feature {
                   mac_address: network.get()?.mac,
                 });
               }
-              // TODO: save to local.db
             }
           }
         }

@@ -1,26 +1,114 @@
+import type { OkResponse, SessionAttributes } from "../types/index.ts";
 import { Application } from "../app.ts";
-import { AuthTokenEvent } from "../handlers/socket.handler.ts";
+import { AuthTokenEvent, EventUpdateData } from "../handlers/socket.handler.ts";
 import { EventListener } from "../listener.ts";
 import { Fetcher } from "../lib/fetcher/fetcher.ts";
-import { GlideClient } from "@valkey/valkey-glide";
+import { ServerConfig } from "../features/fetcher.feature.ts";
+import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
+import { internalEvents } from "../consts/index.ts";
+import { SessionModel } from "../schemas/session.sequelize.ts";
 
 export class FetchDataListener extends EventListener {
   name = "fetch-data";
   private _fetcher: Fetcher;
+  private _models: ModelInstances;
+  private _session: SessionModel | null = null;
 
   constructor() {
     super();
     this._fetcher = new Fetcher({ baseUrl: "", apiKey: "" });
+    this._models = new LocalModels({
+      sync: false,
+      logging: false,
+      alter: false,
+    }).models;
   }
 
-  async init(app: Application) {
+  init(app: Application) {
     const evt = app.emitter;
-    const valkey = app.get("glideClient") as GlideClient;
+    const { host, port, apiKey } = app.get("server") as ServerConfig;
+    this._fetcher = new Fetcher({
+      baseUrl: `http://${host}:${port}/api`,
+      apiKey,
+    });
+    const { Equipment, Session } = this._models;
+    // const valkey = app.get("glideClient") as GlideClient;
 
-    const data = await valkey.hget("auth:token", "auth:token");
-    console.log(data);
+    // const data = await valkey.hget("auth:token", "auth:token");
     // this.
-    evt.on("data:token", ({ token, equipment_uuid }: AuthTokenEvent) => {});
+    evt.on("auth:token", async ({ token, equipment_uuid }: AuthTokenEvent) => {
+      const [
+        equipment,
+        {
+          data: { data },
+        },
+      ] = await Promise.all([
+        Equipment.findOne({
+          where: {
+            uuid: equipment_uuid,
+          },
+        }),
+
+        this._fetcher.get<OkResponse<SessionAttributes>>("/apps/auth", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "equipment-uuid": equipment_uuid,
+          },
+        }),
+      ]);
+      if (equipment === null) return;
+      app.set("equipment_uuid", equipment_uuid);
+      app.set("session_id", data.id);
+      app.set("token", token);
+      let availableSession = await Session.findOne({
+        where: { svr_id: data.id },
+      });
+      if (availableSession === null) {
+        availableSession = await Session.create({
+          svr_id: data.id,
+          equipment_id: data.equipment_id,
+          equipment_hull_number: data.equipment_hull_number,
+          equipment_type: data.equipment_type,
+          operator_id: data.operator_id,
+          dumping_location_id: data.dumping_location_id,
+          loading_location_id: data.loading_location_id,
+          event_code: data.event_code,
+          event_description: data.event_description,
+          event_id: data.event_id,
+          event_status: data.event_status,
+          excavator_hull_number: data.exca_hull_number,
+          excavator_id: data.exca_id,
+          previous_event_id: data.previous_event_id,
+          material_id: data.material_id,
+          job_type: data.job_type,
+          is_active: true,
+          shift: data.shift,
+        });
+      }
+
+      this._session = availableSession;
+
+      app.emitter.emit(internalEvents.GEOFENCE_START, {
+        session: availableSession.toJSON(),
+        token,
+        equipment_uuid,
+      });
+
+      // app.emitter.
+      console.log(equipment.hull_number, data.id);
+    });
+
+    evt.on(internalEvents.EVENT_UPDATE, async (data: EventUpdateData) => {
+      if (this._session === null) return;
+      // const currentEvent = await this._models
+
+      await this._session.update({
+        event_id: data.currentEventId,
+        event_description: data.currentEventDescription,
+        event_code: data.currentEventCode,
+        event_status: data.currentEventStatus,
+      });
+    });
   }
 
   public override unregister(): void {

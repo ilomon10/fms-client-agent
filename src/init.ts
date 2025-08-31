@@ -1,20 +1,70 @@
+import { config } from "node:process";
+import { isFileExists } from "./helpers/file.ts";
 import { LocalModels } from "./lib/db/sequelize.ts";
-export type InitializeOptions = {};
+import { Fetcher } from "./lib/fetcher/fetcher.ts";
+import {
+  CycleSettingAttributes,
+  OkResponse,
+  SiteSettings,
+} from "./types/index.ts";
+export type InitializeOptions = {
+  initialServer?: string;
+  initialServerPort?: number;
+  initialApiKey?: string;
+};
 
 export default async function (options?: InitializeOptions) {
   try {
+    const fileExists = [
+      isFileExists("cycle-settings.json"),
+      isFileExists("shifts.json"),
+    ];
+
+    // console.log(fileExists, options);
+    // const isShiftSettingExists = isFileExists("shifts.json");
+
+    if (
+      typeof options !== "undefined" &&
+      typeof options.initialApiKey !== "undefined" &&
+      typeof options.initialServerPort !== "undefined" &&
+      typeof options.initialServer !== "undefined"
+    ) {
+      // console.log("here");
+      const { initialServer, initialServerPort, initialApiKey } = options;
+      const fetcher = new Fetcher({
+        baseUrl: `${initialServer}:${initialServerPort}/api/apps`,
+        apiKey: initialApiKey,
+      });
+      const isConfigExists = fileExists.every((file) => !file);
+
+      if (isConfigExists) {
+        const [cycleSettings, shifts] = await Promise.all([
+          fetcher.get<OkResponse<CycleSettingAttributes>>("/cycle-settings"),
+          fetcher.get<OkResponse<SiteSettings>>("/shifts"),
+        ]);
+
+        Deno.writeTextFileSync(
+          "cycle-settings.json",
+          JSON.stringify(cycleSettings.data.data),
+        );
+        Deno.writeTextFileSync("shifts.json", JSON.stringify(shifts.data.data));
+        console.log("FMS config loaded");
+        // configs.forEach()
+      }
+    }
+
     await Deno.readTextFile("config.json");
     console.log("`config.json` file was already exsist");
-    const _d = new LocalModels({ sync: true });
+    new LocalModels({ sync: true, logging: false });
   } catch {
     await Deno.writeTextFile(
       "config.json",
       JSON.stringify(
         {
           server: {
-            host: "127.0.0.1",
-            port: 3000,
-            apiKey: "",
+            host: options?.initialServer ?? "127.0.0.1",
+            port: options?.initialServerPort ?? 3000,
+            apiKey: options?.initialApiKey ?? "",
           },
           gps: {
             type: "serialport",

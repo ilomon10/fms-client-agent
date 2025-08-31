@@ -3,6 +3,7 @@ import { Feature, FeatureStatus } from "../feature.ts";
 import GPS from "../lib/gps/gps.ts";
 import os from "node:os";
 import type NetworkFeature from "./network.feature.ts";
+import { internalEvents } from "../consts/index.ts";
 
 type GpsConfigType = {
   path: string;
@@ -77,6 +78,7 @@ export default class GpsFeature extends Feature {
       gps.on("data:GGA", (data) => {
         if (data) {
           const result = this.get();
+          app.emitter.emit(internalEvents.GPS_DATA, data);
           io.emit("/api/gps:get", result);
           io.emit("onMove", {
             network: {

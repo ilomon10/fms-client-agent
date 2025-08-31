@@ -1,13 +1,17 @@
 import { Application } from "../app.ts";
 import { Feature, FeatureStatus } from "../feature.ts";
 import { Fetcher } from "../lib/fetcher/fetcher.ts";
-import {
+import type {
+  CycleSettingAttributes,
   EquipmentAttributes,
+  EventAttributes,
   LocationAttributes,
   OkResponse,
+  SiteSettings,
 } from "../types/index.ts";
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
-import { GlideClient } from "@valkey/valkey-glide";
+import path from "node:path";
+import { isDirExists } from "../helpers/dir.ts";
 
 export type ServerConfig = {
   host: string;
@@ -20,18 +24,27 @@ export class FetcherFeature extends Feature {
   public status: FeatureStatus;
   private baseUrl: string = "";
   private models: ModelInstances;
+  private _jsonPath: string;
 
   constructor() {
     super();
     this.status = "OK";
     this.models = new LocalModels({ sync: false }).models;
+    const homeDir = Deno.env.get("HOME") ?? "";
+    const dotConfig = path.resolve(homeDir, ".config", "tracker");
+    if (!isDirExists(dotConfig)) {
+      Deno.mkdirSync(dotConfig);
+    }
+    const projectRootDir = path.resolve("./");
+    console.log({ projectRootDir, dotConfig });
+    this._jsonPath =
+      Deno.env.get("DENO_ENV") === "development" ? projectRootDir : homeDir;
   }
 
   async register(_: Application) {
     const serverConfig = _.get<ServerConfig>("server");
-    const valkey = _.get<GlideClient>("glideClient");
     if (typeof serverConfig === "undefined") return;
-    if (typeof valkey === "undefined") return;
+    // console.log(this._jsonPath);
 
     this.baseUrl = `http://${serverConfig.host}:${serverConfig.port}`;
     const fetcher = new Fetcher({
@@ -48,10 +61,43 @@ export class FetcherFeature extends Feature {
     } = await fetcher.get<OkResponse<Array<LocationAttributes>>>(
       "/api/apps/locations",
     );
+    const {
+      data: { data: events },
+    } =
+      await fetcher.get<OkResponse<Array<EventAttributes>>>("/api/apps/events");
+    const {
+      data: { data: cycleSettings },
+    } = await fetcher.get<OkResponse<CycleSettingAttributes>>(
+      "/api/apps/cycle-settings",
+    );
+    const {
+      data: { data: siteSettings },
+    } = await fetcher.get<OkResponse<SiteSettings>>("/api/apps/shifts");
 
-    const { Location, Equipment } = this.models;
+    Deno.writeTextFileSync(
+      path.resolve(this._jsonPath, "cycle-settings.json"),
+      JSON.stringify(cycleSettings),
+    );
 
-    await valkey?.hset("data:locations", [{ field: "test", value: "value" }]);
+    Deno.writeTextFileSync(
+      path.resolve(this._jsonPath, "shifts.json"),
+      JSON.stringify(siteSettings),
+    );
+
+    const { Location, Equipment, Event } = this.models;
+
+    await Promise.allSettled(
+      events.map(async (event) => {
+        const availableEvent = await Event.findOne({
+          where: { svr_id: event.id },
+        });
+        const { id: svr_id, ...ev } = event;
+        if (availableEvent === null) {
+          return await Event.create({ svr_id, ...ev });
+        }
+        return availableEvent;
+      }),
+    );
 
     await Promise.allSettled(
       locations.map(async (loc) => {

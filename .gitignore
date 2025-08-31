@@ -2,6 +2,8 @@ node_modules
 target
 local.db
 config.json
+cycle-settings.json
+shifts.json
 .histfile
 *.db
 *.db-journal

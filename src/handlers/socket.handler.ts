@@ -1,29 +1,36 @@
-import { GlideClient } from "@valkey/valkey-glide";
 import { Handler } from "../handler.ts";
 import { Application } from "../app.ts";
+import { internalEvents } from "../consts/index.ts";
 
 export type AuthTokenEvent = {
   token: string | null;
   equipment_uuid: string;
 };
 
+export type EventUpdateData = {
+  currentEventId: number;
+  currentEventTimestamp: string;
+  currentEventCode: string;
+  lastActive: string;
+  currentHourMeter: number;
+  currentEventType: string;
+  currentEventDescription: string;
+  currentEventDescriptionInd: string;
+  currentEventStatus: string;
+};
+
 export class SocketHandler extends Handler {
   name = "socket";
 
   public override register(app: Application): void | Promise<void> {
-    const valkey = app.get("glideClient") as GlideClient;
+    // const valkey = app.get("glideClient") as GlideClient;
     app.ioUse((io) => {
       io.on("connection", (socket) => {
-        socket.on("auth:token", async (data: AuthTokenEvent) => {
-          console.log("auth:token data -", data);
-          if (data.token !== null) await valkey.set("token", data.token);
-
-          await valkey.set("equipment_uuid", data.equipment_uuid);
-          await valkey.hset("auth:token", [
-            { field: "apiKey", value: data.token ?? "" },
-            { field: "equipment_uuid", value: data.equipment_uuid ?? "" },
-          ]);
+        socket.on(internalEvents.AUTH, (data: AuthTokenEvent) => {
           app.emitter.emit("auth:token", data);
+        });
+        socket.on(internalEvents.EVENT_UPDATE, (data: EventUpdateData) => {
+          app.emitter.emit(internalEvents.EVENT_UPDATE, data);
         });
       });
     });

@@ -11,6 +11,8 @@ import { Handler } from "./handler.ts";
 import { DefaultEvents, Emitter } from "nanoevents";
 import { EventEmitter } from "./lib/event-emitter/event-emitter.ts";
 import { EventListener } from "./listener.ts";
+import { loadJSONFromFile } from "./helpers/file.ts";
+import { CycleSettingAttributes, SiteSettings } from "./types/index.ts";
 
 export { HTTP_Router as Router };
 
@@ -60,6 +62,7 @@ export class Application {
 
   constructor() {
     this.loadConfig();
+    this._loadFMSConfig();
     this.registerCore();
     this.emitter = new EventEmitter().emitter;
   }
@@ -164,6 +167,15 @@ export class Application {
     const raw = Deno.readFileSync("config.json");
     const cfg = JSON.parse(new TextDecoder().decode(raw));
     Object.entries(cfg).forEach(([k, v]) => this.set(k, v));
+  }
+
+  private _loadFMSConfig() {
+    const cycleSettings = loadJSONFromFile<CycleSettingAttributes>(
+      "cycle-settings.json",
+    );
+    const shifts = loadJSONFromFile<SiteSettings>("shifts.json");
+    this.set("cycleSettings", cycleSettings);
+    this.set("shifts", shifts);
   }
 
   public serve(options: { port?: number } = {}) {

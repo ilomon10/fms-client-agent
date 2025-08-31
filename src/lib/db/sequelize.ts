@@ -12,16 +12,26 @@ import {
   createDelayedDataModel,
   DelayedDataInstance,
 } from "../../schemas/delayed-data.sequelize.ts";
+import {
+  createSessionModel,
+  SessionIntance,
+} from "../../schemas/session.sequelize.ts";
+import {
+  createEventModel,
+  EventInstance,
+} from "../../schemas/event.sequelize.ts";
 
 const sequelize = new Sequelize({
   dialect: "sqlite",
   storage: path.resolve("local.db"),
-  logging: Deno.env.get("DENO_ENV") === "development",
+  logging: false, // Deno.env.get("DENO_ENV") === "development",
 });
 
 export type ModelInstances = {
   Equipment: EquipmentInstance;
+  Event: EventInstance;
   Location: LocationInstance;
+  Session: SessionIntance;
   DelayedData: DelayedDataInstance;
 };
 
@@ -31,14 +41,18 @@ export class LocalModels {
     sync,
     alter,
     force,
+    logging,
   }: {
     force?: boolean;
     sync?: boolean;
     alter?: boolean;
+    logging?: boolean;
   }) {
     this.models = {
       Equipment: createEquipmentModel(sequelize),
+      Event: createEventModel(sequelize),
       Location: createLocationModel(sequelize),
+      Session: createSessionModel(sequelize),
       DelayedData: createDelayedDataModel(sequelize),
     };
 
@@ -47,6 +61,7 @@ export class LocalModels {
         .sync({
           alter,
           force,
+          logging,
         })
         .then(() => {
           console.log("Sync DB success");

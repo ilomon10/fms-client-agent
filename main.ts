@@ -1,5 +1,5 @@
 import serve from "./server.ts";
-import { Command, EnumType } from "@cliffy/command";
+import { Command, EnumType, NumberType, StringType } from "@cliffy/command";
 import runTui from "./src/tui.tsx";
 import initialize from "./src/init.ts";
 
@@ -17,8 +17,18 @@ if (import.meta.main) {
     // Setup Agent
     .command("init")
     .description("Initialize the I/O Agent.")
-    .action(() => {
-      initialize();
+    .option("-p, --port <port:number>", "server port")
+    .option("-h, --host <host:string>", "server host")
+    .option("-K, --apiKey <apiKey:string>", "API Key")
+    // .option("-f, --force <force:boolean>", "sequelize force renew db")
+    .action((options) => {
+      const { port, host, apiKey } = options;
+      // console.log({ apiKey }, options);
+      initialize({
+        initialServerPort: port,
+        initialServer: host,
+        initialApiKey: apiKey,
+      });
     })
     // Update client
     .command("upgrade")
