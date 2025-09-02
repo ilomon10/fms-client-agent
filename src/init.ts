@@ -7,6 +7,7 @@ import {
   OkResponse,
   SiteSettings,
 } from "./types/index.ts";
+import { Axios, isAxiosError } from "axios";
 export type InitializeOptions = {
   initialServer?: string;
   initialServerPort?: number;
@@ -30,9 +31,10 @@ export default async function (options?: InitializeOptions) {
       typeof options.initialServer !== "undefined"
     ) {
       // console.log("here");
+      console.log("pulling data from server");
       const { initialServer, initialServerPort, initialApiKey } = options;
       const fetcher = new Fetcher({
-        baseUrl: `${initialServer}:${initialServerPort}/api/apps`,
+        baseUrl: `http://${initialServer}:${initialServerPort}/api/apps`,
         apiKey: initialApiKey,
       });
       const isConfigExists = fileExists.every((file) => !file);
@@ -56,7 +58,10 @@ export default async function (options?: InitializeOptions) {
     await Deno.readTextFile("config.json");
     console.log("`config.json` file was already exsist");
     new LocalModels({ sync: true, logging: false });
-  } catch {
+  } catch (e) {
+    if (isAxiosError(e)) {
+      console.log(e.message);
+    }
     await Deno.writeTextFile(
       "config.json",
       JSON.stringify(
