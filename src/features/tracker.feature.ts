@@ -89,6 +89,7 @@ export default class TrackerFeature extends Feature {
               lon: data.lon,
               alt: data.lon,
             });
+            console.log("sending data");
             // this.push()
           }
 
