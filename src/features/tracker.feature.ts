@@ -83,6 +83,13 @@ export default class TrackerFeature extends Feature {
 
           if (now % 60 === 0) {
             this._delayedTrackerClient.sendData();
+            this._trackerClient?.push({
+              ...result,
+              lat: data.lat,
+              lon: data.lon,
+              alt: data.lon,
+            });
+            // this.push()
           }
 
           if (typeof result.speed !== "undefined" && result.speed > 0.3) {
@@ -114,7 +121,7 @@ export default class TrackerFeature extends Feature {
               });
             } catch (e) {
               if (axios.isAxiosError(e)) {
-                console.log(e);
+                // console.log(e);
                 await this._models.DelayedData.create({
                   ...result,
                   ip_address: network.get()?.address,

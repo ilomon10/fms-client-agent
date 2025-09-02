@@ -1,5 +1,5 @@
 import * as turf from "@turf/turf";
-import { Application } from "../app.ts";
+import { Application, Router } from "../app.ts";
 import { gridlockEvents, internalEvents } from "../consts/index.ts";
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
 import { EventListener } from "../listener.ts";
@@ -40,6 +40,7 @@ export class GeoFenceListener extends EventListener {
   private dumpingLoc: LocationModel | null = null;
   private _emitted: boolean = false;
   private _lastUpdated: number = 0;
+  private router = new Router();
 
   constructor() {
     super();
@@ -54,6 +55,7 @@ export class GeoFenceListener extends EventListener {
   public override init(app: Application): void {
     const event = app.emitter;
     const cycleSettings = app.get("cycle-settings") as CycleSettingAttributes;
+    // console.log("test", cycleSettings);
     this.cycleSettings = cycleSettings.items;
     event.on(internalEvents.GEOFENCE_START, async (data: SessionEventData) => {
       this._session = data;
@@ -103,6 +105,16 @@ export class GeoFenceListener extends EventListener {
       this._lastUpdated = Date.now();
       this._emitted = false;
     });
+
+    this.router.get("/api/geofence", (ctx) => {
+      ctx.response.body = {
+        loading_location: this.loadingLoc ?? {},
+        dumping_location: this.dumpingLoc ?? {},
+        last_updated: this._lastUpdated,
+      };
+    });
+
+    app.httpUse(this.router.routes());
 
     app.ioUse((io) => {
       io.on("connection", (socket) => {

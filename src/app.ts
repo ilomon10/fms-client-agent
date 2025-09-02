@@ -174,7 +174,7 @@ export class Application {
       "cycle-settings.json",
     );
     const shifts = loadJSONFromFile<SiteSettings>("shifts.json");
-    this.set("cycleSettings", cycleSettings);
+    this.set("cycle-settings", cycleSettings);
     this.set("shifts", shifts);
   }
 

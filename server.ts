@@ -10,6 +10,7 @@ import { RedisService } from "./src/services/redis.service.ts";
 import { ValkeyService } from "./src/services/valkey.service.ts";
 import { SocketHandler } from "./src/handlers/socket.handler.ts";
 import { FetchDataListener } from "./src/listeners/fetch-data.listener.ts";
+import { GeoFenceListener } from "./src/listeners/geofence.listener.ts";
 
 export default function serve(options?: { port?: number }): Application {
   const app = new Application();
@@ -18,6 +19,7 @@ export default function serve(options?: { port?: number }): Application {
   app.configure(new ValkeyService());
   app.configure(new SocketHandler());
   app.configure(new FetchDataListener());
+  app.configure(new GeoFenceListener());
   app.configure(new FetcherFeature());
   app.configure(new NetworkFeature());
   app.configure(new CanFeature());

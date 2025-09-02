@@ -5,6 +5,7 @@ import { TrackerClient } from "./tracker.ts";
 
 export class DelayedData extends TrackerClient {
   private _models: ModelInstances;
+  private _hostname: string = Deno.hostname();
 
   constructor(config: TrackerConfigType) {
     const { host } = config;
@@ -23,7 +24,7 @@ export class DelayedData extends TrackerClient {
 
   private async sendDelayedData(data: DelayedDataModel) {
     await this.axiosInstance.post("/delayed-tracker", {
-      data: [data.toJSON()],
+      data: [{ ...data.toJSON(), hostname: this._hostname }],
     });
     await data.update({ is_synced: true });
 

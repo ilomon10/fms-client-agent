@@ -1,5 +1,5 @@
 import type { OkResponse, SessionAttributes } from "../types/index.ts";
-import { Application } from "../app.ts";
+import { Application, Router } from "../app.ts";
 import { AuthTokenEvent, EventUpdateData } from "../handlers/socket.handler.ts";
 import { EventListener } from "../listener.ts";
 import { Fetcher } from "../lib/fetcher/fetcher.ts";
@@ -13,6 +13,7 @@ export class FetchDataListener extends EventListener {
   private _fetcher: Fetcher;
   private _models: ModelInstances;
   private _session: SessionModel | null = null;
+  private router = new Router();
 
   constructor() {
     super();
@@ -33,7 +34,13 @@ export class FetchDataListener extends EventListener {
     });
     const { Equipment, Session } = this._models;
     // const valkey = app.get("glideClient") as GlideClient;
+    this.router.get("/api/session", (ctx) => {
+      ctx.response.body = {
+        session: this._session,
+      };
+    });
 
+    app.httpUse(this.router.routes());
     // const data = await valkey.hget("auth:token", "auth:token");
     // this.
     evt.on("auth:token", async ({ token, equipment_uuid }: AuthTokenEvent) => {
