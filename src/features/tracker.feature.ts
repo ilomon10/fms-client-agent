@@ -76,9 +76,11 @@ export default class TrackerFeature extends Feature {
 
     app.ioUse((_io) => {
       const network = app.feature("network") as NetworkFeature;
+      const currentDate = new Date();
       app.emitter.on(internalEvents.GPS_DATA, async (data) => {
         if (data) {
           // console.log("here inside if data");
+
           const result = gps.get_state();
           const now = Date.now();
 
@@ -91,7 +93,9 @@ export default class TrackerFeature extends Feature {
                 lon: data.lon,
                 alt: result.alt,
                 hostname,
-                time: Date.now(),
+                timestamp: currentDate.toISOString(),
+                ip_address: network.get()?.address,
+                mac_address: network.get()?.mac,
               });
               console.log("sending data");
             } catch (e) {
@@ -128,6 +132,7 @@ export default class TrackerFeature extends Feature {
                 mac: network.get()?.mac,
                 location_name: nearestLocation,
                 hostname,
+                timestamp: currentDate.toISOString(),
               });
             } catch (e) {
               if (axios.isAxiosError(e)) {
@@ -136,6 +141,7 @@ export default class TrackerFeature extends Feature {
                   ...result,
                   ip_address: network.get()?.address,
                   mac_address: network.get()?.mac,
+                  time: currentDate.toISOString(),
                 });
               }
             }
