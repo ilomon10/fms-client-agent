@@ -56,16 +56,23 @@ export class LocalModels {
       DelayedData: createDelayedDataModel(sequelize),
     };
 
-    if (sync) {
-      sequelize
-        .sync({
-          alter,
-          force,
-          logging,
-        })
-        .then(() => {
-          console.log("Sync DB success");
-        });
-    }
+    if (sync) this.sync({ alter: alter ?? false, logging, force });
+  }
+
+  public async sync(opts?: {
+    alter: boolean;
+    logging?: boolean;
+    force?: boolean;
+  }) {
+    return await sequelize
+      .sync({
+        alter: opts?.alter,
+        force: opts?.force,
+        logging: opts?.logging,
+      })
+      .then((res) => {
+        console.log("Sync DB success");
+        return res;
+      });
   }
 }

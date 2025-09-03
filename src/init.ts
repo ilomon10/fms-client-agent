@@ -1,4 +1,3 @@
-import { config } from "node:process";
 import { isFileExists } from "./helpers/file.ts";
 import { LocalModels } from "./lib/db/sequelize.ts";
 import { Fetcher } from "./lib/fetcher/fetcher.ts";
@@ -7,7 +6,7 @@ import {
   OkResponse,
   SiteSettings,
 } from "./types/index.ts";
-import { Axios, isAxiosError } from "axios";
+import { isAxiosError } from "axios";
 export type InitializeOptions = {
   initialServer?: string;
   initialServerPort?: number;
@@ -57,7 +56,8 @@ export default async function (options?: InitializeOptions) {
 
     await Deno.readTextFile("config.json");
     console.log("`config.json` file was already exsist");
-    new LocalModels({ sync: true, logging: false });
+    const models = new LocalModels({});
+    await models.sync({ alter: true });
   } catch (e) {
     if (isAxiosError(e)) {
       console.log(e.message);
