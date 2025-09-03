@@ -8,7 +8,7 @@ import * as turf from "npm:@turf/turf";
 import type NetworkFeature from "./network.feature.ts";
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
 import { getNearestLocations } from "../helpers/geofence.ts";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import { DelayedData } from "../lib/tracker/delayed-data.ts";
 import { internalEvents } from "../consts/index.ts";
 // import { RedisService } from "../services/redis.service.ts";
@@ -83,14 +83,21 @@ export default class TrackerFeature extends Feature {
           const now = Date.now();
 
           if (now % 60 === 0) {
-            this._delayedTrackerClient.sendData();
-            this._trackerClient?.push({
-              ...result,
-              lat: data.lat,
-              lon: data.lon,
-              alt: data.lon,
-            });
-            console.log("sending data");
+            try {
+              this._delayedTrackerClient.sendData();
+              this._trackerClient?.push({
+                ...result,
+                lat: data.lat,
+                lon: data.lon,
+                alt: result.alt,
+                hostname,
+              });
+              console.log("sending data");
+            } catch (e) {
+              if (isAxiosError(e)) {
+                console.log(`[axios-err]: ${e.message}`);
+              }
+            }
             // this.push()
           }
 
