@@ -24,7 +24,15 @@ export class DelayedData extends TrackerClient {
 
   private async sendDelayedData(data: DelayedDataModel) {
     await this.axiosInstance.post("/delayed-tracker", {
-      data: [{ ...data.toJSON(), hostname: this._hostname }],
+      data: [
+        {
+          ...data.toJSON(),
+          ip: data.ip_address,
+          mac: data.mac_address,
+          time: new Date(data.time).toISOString(),
+          hostname: this._hostname,
+        },
+      ],
     });
     await data.update({ is_synced: true });
 

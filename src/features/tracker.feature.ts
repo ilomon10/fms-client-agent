@@ -94,8 +94,8 @@ export default class TrackerFeature extends Feature {
                 alt: result.alt,
                 hostname,
                 timestamp: currentDate.toISOString(),
-                ip_address: network.get()?.address,
-                mac_address: network.get()?.mac,
+                ip: network.get()?.address,
+                mac: network.get()?.mac,
               });
               console.log("sending data");
             } catch (e) {
