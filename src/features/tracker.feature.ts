@@ -76,8 +76,8 @@ export default class TrackerFeature extends Feature {
 
     app.ioUse((_io) => {
       const network = app.feature("network") as NetworkFeature;
-      const currentDate = new Date();
       app.emitter.on(internalEvents.GPS_DATA, async (data) => {
+        const currentDate = new Date();
         if (data) {
           // console.log("here inside if data");
 
