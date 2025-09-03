@@ -91,6 +91,7 @@ export default class TrackerFeature extends Feature {
                 lon: data.lon,
                 alt: result.alt,
                 hostname,
+                time: Date.now(),
               });
               console.log("sending data");
             } catch (e) {
