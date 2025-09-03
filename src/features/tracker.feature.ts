@@ -10,6 +10,7 @@ import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
 import { getNearestLocations } from "../helpers/geofence.ts";
 import axios from "axios";
 import { DelayedData } from "../lib/tracker/delayed-data.ts";
+import { internalEvents } from "../consts/index.ts";
 // import { RedisService } from "../services/redis.service.ts";
 // import {RedisService} from '../services/redis.service.ts'
 
@@ -75,7 +76,7 @@ export default class TrackerFeature extends Feature {
 
     app.ioUse((_io) => {
       const network = app.feature("network") as NetworkFeature;
-      gps.on("data:GGA", async (data) => {
+      app.emitter.on(internalEvents.GPS_DATA, async (data) => {
         if (data) {
           // console.log("here inside if data");
           const result = gps.get_state();
