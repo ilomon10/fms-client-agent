@@ -41,6 +41,7 @@ export class GeoFenceListener extends EventListener {
   private _emitted: boolean = false;
   private _lastUpdated: number = 0;
   private router = new Router();
+  private _geofenceStarted: boolean = false;
 
   constructor() {
     super();
@@ -59,6 +60,8 @@ export class GeoFenceListener extends EventListener {
     this.cycleSettings = cycleSettings.items;
     event.on(internalEvents.GEOFENCE_START, async (data: SessionEventData) => {
       this._session = data;
+      this._geofenceStarted = true;
+
       const locations = await this._models.Location.findAll({
         where: {
           svr_id: {
@@ -88,7 +91,36 @@ export class GeoFenceListener extends EventListener {
       this.dumpingLoc = dumpingLocation;
     });
 
-    event.emit(internalEvents.EVENT_UPDATE, (data: EventUpdateData) => {
+    event.on(internalEvents.AUTH_LOGOUT, () => {
+      this._session = null;
+      this.dumpingLoc = null;
+      this.loadingLoc = null;
+    });
+
+    event.on(internalEvents.AUTH_UPDATE, async (data: SessionEventData) => {
+      if (this._session === null) {
+        this._session = data;
+        return;
+      }
+
+      this.loadingLoc = await this.loadLocation(
+        data.session.loading_location_id,
+      );
+      if (data.session.dumping_location_id !== null)
+        this.dumpingLoc = await this.loadLocation(
+          data.session.dumping_location_id,
+        );
+
+      this._session = {
+        ...this._session,
+        session: {
+          ...this._session.session,
+          ...data.session,
+        },
+      };
+    });
+
+    event.on(internalEvents.EVENT_UPDATE, (data: EventUpdateData) => {
       if (this._session === null) return;
       const { session } = this._session;
       this._session = {
@@ -111,6 +143,8 @@ export class GeoFenceListener extends EventListener {
         loading_location: this.loadingLoc ?? {},
         dumping_location: this.dumpingLoc ?? {},
         last_updated: this._lastUpdated,
+        session: this._session,
+        geofence_started: this._geofenceStarted,
       };
     });
 
@@ -165,6 +199,14 @@ export class GeoFenceListener extends EventListener {
   private canContinue() {
     const diff = Date.now() - this._lastUpdated;
     return diff < 30000;
+  }
+
+  private loadLocation(id: number): Promise<LocationModel | null> {
+    return this._models.Location.findOne({
+      where: {
+        svr_id: id,
+      },
+    });
   }
 
   private calculateGeofence({

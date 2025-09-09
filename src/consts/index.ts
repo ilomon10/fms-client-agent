@@ -3,6 +3,7 @@ export const internalEvents = Object.freeze({
   GEOFENCE_STOP: "geofence:stop",
   AUTH: "auth:token",
   AUTH_LOGOUT: "auth:logout",
+  AUTH_UPDATE: "auth:update",
   GPS_DATA: "gps:data",
   EVENT_UPDATE: "event:update",
 });

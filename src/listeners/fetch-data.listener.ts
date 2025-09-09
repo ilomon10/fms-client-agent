@@ -1,4 +1,8 @@
-import type { OkResponse, SessionAttributes } from "../types/index.ts";
+import type {
+  EventAttributes,
+  OkResponse,
+  SessionAttributes,
+} from "../types/index.ts";
 import { Application, Router } from "../app.ts";
 import { AuthTokenEvent, EventUpdateData } from "../handlers/socket.handler.ts";
 import { EventListener } from "../listener.ts";
@@ -7,17 +11,19 @@ import { ServerConfig } from "../features/fetcher.feature.ts";
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
 import { internalEvents } from "../consts/index.ts";
 import { SessionModel } from "../schemas/session.sequelize.ts";
+import { isAxiosError } from "axios";
+import { LocationModel } from "../schemas/location.sequelize.ts";
 
 export class FetchDataListener extends EventListener {
   name = "fetch-data";
-  private _fetcher: Fetcher;
+  private _fetcher: Fetcher | null = null;
   private _models: ModelInstances;
   private _session: SessionModel | null = null;
   private router = new Router();
 
   constructor() {
     super();
-    this._fetcher = new Fetcher({ baseUrl: "", apiKey: "" });
+    // this._fetcher = new Fetcher({ baseUrl: "", apiKey: "" });
     this._models = new LocalModels({
       sync: false,
       logging: false,
@@ -33,6 +39,7 @@ export class FetchDataListener extends EventListener {
       apiKey,
     });
     const { Equipment, Session } = this._models;
+    if (this._fetcher === null) return;
     // const valkey = app.get("glideClient") as GlideClient;
     this.router.get("/api/session", (ctx) => {
       ctx.response.body = {
@@ -44,77 +51,106 @@ export class FetchDataListener extends EventListener {
     // const data = await valkey.hget("auth:token", "auth:token");
     // this.
     evt.on("auth:token", async ({ token, equipment_uuid }: AuthTokenEvent) => {
-      const [
-        equipment,
-        {
-          data: { data },
-        },
-      ] = await Promise.all([
-        Equipment.findOne({
-          where: {
-            uuid: equipment_uuid,
+      try {
+        const [
+          equipment,
+          {
+            data: { data },
           },
-        }),
+        ] = await Promise.all([
+          Equipment.findOne({
+            where: {
+              uuid: equipment_uuid,
+            },
+          }),
+          this._fetcher!.get<OkResponse<SessionAttributes>>("/apps/session", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "equipment-uuid": equipment_uuid,
+            },
+          }),
+        ]);
 
-        this._fetcher.get<OkResponse<SessionAttributes>>("/apps/auth", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "equipment-uuid": equipment_uuid,
-          },
-        }),
-      ]);
-      if (equipment === null) return;
-      app.set("equipment_uuid", equipment_uuid);
-      app.set("session_id", data.id);
-      app.set("token", token);
-      let availableSession = await Session.findOne({
-        where: { svr_id: data.id },
-      });
-      if (availableSession === null) {
-        availableSession = await Session.create({
-          svr_id: data.id,
-          equipment_id: data.equipment_id,
-          equipment_hull_number: data.equipment_hull_number,
-          equipment_type: data.equipment_type,
-          operator_id: data.operator_id,
-          dumping_location_id: data.dumping_location_id,
-          loading_location_id: data.loading_location_id,
-          event_code: data.event_code,
-          event_description: data.event_description,
-          event_id: data.event_id,
-          event_status: data.event_status,
-          excavator_hull_number: data.exca_hull_number,
-          excavator_id: data.exca_id,
-          previous_event_id: data.previous_event_id,
-          material_id: data.material_id,
-          job_type: data.job_type,
-          is_active: true,
-          shift: data.shift,
+        if (equipment === null) return;
+
+        app.set("equipment_uuid", equipment_uuid);
+        app.set("session_id", data.id);
+        app.set("token", token);
+
+        let availableSession = await Session.findOne({
+          where: { svr_id: data.id },
         });
+        if (availableSession === null) {
+          availableSession = await Session.create({
+            svr_id: data.id,
+            equipment_id: data.equipment_id,
+            equipment_hull_number: data.equipment_hull_number,
+            equipment_type: data.equipment_type,
+            operator_id: data.operator_id,
+            dumping_location_id: data.dumping_location_id,
+            loading_location_id: data.loading_location_id,
+            event_code: data.event_code,
+            event_description: data.event_description,
+            event_id: data.event_id,
+            event_status: data.event_status,
+            excavator_hull_number: data.exca_hull_number,
+            excavator_id: data.exca_id,
+            previous_event_id: data.previous_event_id,
+            material_id: data.material_id,
+            job_type: data.job_type,
+            is_active: true,
+            shift: data.shift,
+          });
+        }
+
+        if (this._session === null) {
+          app.emitter.emit(internalEvents.GEOFENCE_START, {
+            session: availableSession.toJSON(),
+            token,
+            equipment_uuid,
+          });
+        } else {
+          app.emitter.emit(internalEvents.AUTH_UPDATE, {
+            session: availableSession.toJSON(),
+            token,
+            equipment_uuid,
+          });
+        }
+
+        this._session = availableSession;
+        // app.emitter.
+      } catch (error) {
+        if (isAxiosError(error)) {
+          console.log(error.response?.data);
+        }
+        // console.log(error);
       }
-
-      this._session = availableSession;
-
-      app.emitter.emit(internalEvents.GEOFENCE_START, {
-        session: availableSession.toJSON(),
-        token,
-        equipment_uuid,
-      });
-
-      // app.emitter.
-      console.log(equipment.hull_number, data.id);
     });
 
     evt.on(internalEvents.EVENT_UPDATE, async (data: EventUpdateData) => {
       if (this._session === null) return;
       // const currentEvent = await this._models
 
-      await this._session.update({
+      const updated = await this._session.update({
         event_id: data.currentEventId,
         event_description: data.currentEventDescription,
         event_code: data.currentEventCode,
         event_status: data.currentEventStatus,
       });
+
+      this._session = updated;
+    });
+
+    evt.on(internalEvents.AUTH_LOGOUT, async (data: EventAttributes) => {
+      await this._session?.update({
+        is_active: false,
+        event_id: data.id,
+        event_description: data.description,
+        event_code: data.code,
+        event_status: data.status,
+        // previous_event_id
+      });
+      this._session = null;
     });
   }
 

@@ -1,6 +1,7 @@
 import { Handler } from "../handler.ts";
 import { Application } from "../app.ts";
 import { internalEvents } from "../consts/index.ts";
+import { EventAttributes } from "../types/index.ts";
 
 export type AuthTokenEvent = {
   token: string | null;
@@ -29,8 +30,13 @@ export class SocketHandler extends Handler {
         socket.on(internalEvents.AUTH, (data: AuthTokenEvent) => {
           app.emitter.emit("auth:token", data);
         });
+
         socket.on(internalEvents.EVENT_UPDATE, (data: EventUpdateData) => {
           app.emitter.emit(internalEvents.EVENT_UPDATE, data);
+        });
+
+        socket.on(internalEvents.AUTH_LOGOUT, (data: EventAttributes) => {
+          app.emitter.emit(internalEvents.AUTH_LOGOUT, data);
         });
       });
     });

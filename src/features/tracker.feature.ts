@@ -86,8 +86,8 @@ export default class TrackerFeature extends Feature {
 
           if (now % 60 === 0) {
             try {
-              this._delayedTrackerClient.sendData();
-              this._trackerClient?.push({
+              await this._delayedTrackerClient.sendData();
+              await this._trackerClient?.push({
                 ...result,
                 lat: data.lat,
                 lon: data.lon,
