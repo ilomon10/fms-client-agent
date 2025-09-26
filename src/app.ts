@@ -12,7 +12,11 @@ import { DefaultEvents, Emitter } from "nanoevents";
 import { EventEmitter } from "./lib/event-emitter/event-emitter.ts";
 import { EventListener } from "./listener.ts";
 import { loadJSONFromFile } from "./helpers/file.ts";
-import { CycleSettingAttributes, SiteSettings } from "./types/index.ts";
+import {
+  CycleSettingAttributes,
+  EquipmentSetting,
+  SiteSettings,
+} from "./types/index.ts";
 
 export { HTTP_Router as Router };
 
@@ -174,8 +178,11 @@ export class Application {
       "cycle-settings.json",
     );
     const shifts = loadJSONFromFile<SiteSettings>("shifts.json");
+    const equipment = loadJSONFromFile<EquipmentSetting>("equipment.json");
+
     this.set("cycle-settings", cycleSettings);
     this.set("shifts", shifts);
+    this.set("equipment", equipment);
   }
 
   public serve(options: { port?: number } = {}) {

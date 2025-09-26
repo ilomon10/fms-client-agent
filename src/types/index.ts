@@ -200,3 +200,17 @@ export type SessionAttributes = BaseAttributes & {
   foreman_oracle_number: string | null;
   exca_session_id: number | null;
 };
+
+export type EquipmentSetting = { id: number; uuid: string };
+
+export interface TempEventLogAttributes {
+  results?: Array<PrestartResult>;
+}
+
+export interface PrestartResult {
+  id: number;
+  check: string;
+  description: string;
+  condition: boolean;
+  category: "A" | "B" | "C";
+}

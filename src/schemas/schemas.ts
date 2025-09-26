@@ -1,6 +1,7 @@
 import { ColumnType } from "../lib/db/db.ts";
 import { EquipmentAttributes } from "../types/index.ts";
 
+// @ts-ignore: did not implement yet
 export const equipmentDBSchema: Record<
   keyof Omit<
     EquipmentAttributes,

@@ -28,7 +28,8 @@ export class SocketHandler extends Handler {
     app.ioUse((io) => {
       io.on("connection", (socket) => {
         socket.on(internalEvents.AUTH, (data: AuthTokenEvent) => {
-          app.emitter.emit("auth:token", data);
+          console.log("initializing geofence", data.token);
+          app.emitter.emit(internalEvents.AUTH, data);
         });
 
         socket.on(internalEvents.EVENT_UPDATE, (data: EventUpdateData) => {
@@ -36,6 +37,7 @@ export class SocketHandler extends Handler {
         });
 
         socket.on(internalEvents.AUTH_LOGOUT, (data: EventAttributes) => {
+          console.log("logging out from the session");
           app.emitter.emit(internalEvents.AUTH_LOGOUT, data);
         });
       });

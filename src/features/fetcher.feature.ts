@@ -12,6 +12,7 @@ import type {
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
 import path from "node:path";
 import { isDirExists } from "../helpers/dir.ts";
+import { performance } from "node:perf_hooks";
 
 export type ServerConfig = {
   host: string;
@@ -51,38 +52,63 @@ export class FetcherFeature extends Feature {
       baseUrl: this.baseUrl,
       apiKey: serverConfig.apiKey,
     });
+    let start = performance.now();
     const {
       data: { data: equipment },
     } = await fetcher.get<OkResponse<EquipmentAttributes[]>>(
       "/api/apps/equipments",
     );
+    start = performance.now() - start;
+    console.info(
+      "Fetching equipment data completed in:",
+      start.toFixed(2),
+      "ms",
+    );
+    start = performance.now();
     const {
       data: { data: locations },
     } = await fetcher.get<OkResponse<Array<LocationAttributes>>>(
       "/api/apps/locations",
     );
+    start = performance.now() - start;
+    console.info(
+      "Fetching locations data completed in:",
+      start.toFixed(2),
+      "ms",
+    );
+    start = performance.now();
     const {
       data: { data: events },
     } =
       await fetcher.get<OkResponse<Array<EventAttributes>>>("/api/apps/events");
+    start = performance.now() - start;
+    console.info("Fetching events data completed in:", start.toFixed(2), "ms");
+    start = performance.now();
     const {
       data: { data: cycleSettings },
     } = await fetcher.get<OkResponse<CycleSettingAttributes>>(
       "/api/apps/cycle-settings",
     );
+    start = performance.now() - start;
+    console.info("Cycle settings data fetched in:", start.toFixed(2), "ms");
+    start = performance.now();
     const {
       data: { data: siteSettings },
     } = await fetcher.get<OkResponse<SiteSettings>>("/api/apps/shifts");
+    start = performance.now() - start;
+    console.info("Site settings data fetched in:", start.toFixed(2), "ms");
 
     Deno.writeTextFileSync(
       path.resolve(this._jsonPath, "cycle-settings.json"),
       JSON.stringify(cycleSettings),
     );
+    console.info("cycle setting data has been saved to disk");
 
     Deno.writeTextFileSync(
       path.resolve(this._jsonPath, "shifts.json"),
       JSON.stringify(siteSettings),
     );
+    console.info("shift setting data has been saved to disk");
 
     const { Location, Equipment, Event } = this.models;
 

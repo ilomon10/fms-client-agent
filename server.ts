@@ -18,11 +18,11 @@ export default function serve(options?: { port?: number }): Application {
   const platform = os.platform();
   app.configure(new RedisService());
   app.configure(new ValkeyService());
+  app.configure(new FetcherFeature());
   app.configure(new SocketHandler());
   app.configure(new FetchDataListener());
   app.configure(new GeoFenceListener());
   app.configure(new SetEquipmentFeature());
-  app.configure(new FetcherFeature());
   app.configure(new NetworkFeature());
   app.configure(new CanFeature());
   app.configure(new GpioFeature());

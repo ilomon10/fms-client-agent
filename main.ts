@@ -1,5 +1,5 @@
 import serve from "./server.ts";
-import { Command, EnumType, NumberType, StringType } from "@cliffy/command";
+import { Command, EnumType } from "@cliffy/command";
 import runTui from "./src/tui.tsx";
 import initialize from "./src/init.ts";
 

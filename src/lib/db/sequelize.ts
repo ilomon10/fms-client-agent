@@ -20,6 +20,10 @@ import {
   createEventModel,
   EventInstance,
 } from "../../schemas/event.sequelize.ts";
+import {
+  createEventLogModel,
+  EventLogInstance,
+} from "../../schemas/event-log.sequelize.ts";
 
 const sequelize = new Sequelize({
   dialect: "sqlite",
@@ -28,11 +32,12 @@ const sequelize = new Sequelize({
 });
 
 export type ModelInstances = {
+  DelayedData: DelayedDataInstance;
   Equipment: EquipmentInstance;
   Event: EventInstance;
+  EventLog: EventLogInstance;
   Location: LocationInstance;
   Session: SessionIntance;
-  DelayedData: DelayedDataInstance;
 };
 
 export class LocalModels {
@@ -49,11 +54,12 @@ export class LocalModels {
     logging?: boolean;
   }) {
     this.models = {
+      DelayedData: createDelayedDataModel(sequelize),
       Equipment: createEquipmentModel(sequelize),
       Event: createEventModel(sequelize),
+      EventLog: createEventLogModel(sequelize),
       Location: createLocationModel(sequelize),
       Session: createSessionModel(sequelize),
-      DelayedData: createDelayedDataModel(sequelize),
     };
 
     if (sync) this.sync({ alter: alter ?? false, logging, force });
