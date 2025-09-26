@@ -178,11 +178,16 @@ export class Application {
       "cycle-settings.json",
     );
     const shifts = loadJSONFromFile<SiteSettings>("shifts.json");
-    const equipment = loadJSONFromFile<EquipmentSetting>("equipment.json");
+    try {
+      const equipment = loadJSONFromFile<EquipmentSetting>("equipment.json");
+
+      this.set("equipment", equipment);
+    } catch {
+      console.error("[error]: no equipment set");
+    }
 
     this.set("cycle-settings", cycleSettings);
     this.set("shifts", shifts);
-    this.set("equipment", equipment);
   }
 
   public serve(options: { port?: number } = {}) {
