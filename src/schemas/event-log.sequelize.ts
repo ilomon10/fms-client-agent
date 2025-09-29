@@ -6,7 +6,6 @@ import {
   CreationOptional,
   Sequelize,
   DataTypes,
-  DOUBLE,
 } from "sequelize";
 import { TempEventLogAttributes } from "../types/index.ts";
 

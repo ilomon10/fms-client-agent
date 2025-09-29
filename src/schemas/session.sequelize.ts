@@ -34,6 +34,7 @@ export interface SessionModel
   excavator_hull_number: CreationOptional<string | null>;
   equipment_hull_number: CreationOptional<string | null>;
   equipment_type: CreationOptional<EquipmentTypes>;
+  operator_name: CreationOptional<string>;
   shift: CreationOptional<string>;
   job_type: CreationOptional<string>;
   is_active: CreationOptional<boolean>;
@@ -89,6 +90,9 @@ export const createSessionModel = (sequelize: Sequelize) => {
       previous_event_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
+      },
+      operator_name: {
+        type: DataTypes.STRING(500),
       },
       createdAt: {
         type: DataTypes.DATE,

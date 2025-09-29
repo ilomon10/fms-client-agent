@@ -29,10 +29,13 @@ export class FetchDataListener extends EventListener {
       logging: false,
       alter: false,
     }).models;
+    this.init.bind(this);
+    this.notifyFrontend.bind(this);
   }
 
   init(app: Application) {
     const evt = app.emitter;
+    this.notifyFrontend(app);
     const { host, port, apiKey } = app.get("server") as ServerConfig;
     this._fetcher = new Fetcher({
       baseUrl: `http://${host}:${port}/api`,
@@ -43,7 +46,7 @@ export class FetchDataListener extends EventListener {
     // const valkey = app.get("glideClient") as GlideClient;
     this.router.get("/api/session", (ctx) => {
       ctx.response.body = {
-        session: this._session,
+        data: this._session,
       };
     });
 
@@ -161,6 +164,16 @@ export class FetchDataListener extends EventListener {
         // previous_event_id
       });
       this._session = null;
+    });
+  }
+
+  private notifyFrontend(app: Application) {
+    this._models.Session.addHook("afterCreate", (session) => {
+      app.ioUse((socket) => {
+        socket.on("connection", (io) => {
+          io.emit(internalEvents.AUTH, session.toJSON());
+        });
+      });
     });
   }
 

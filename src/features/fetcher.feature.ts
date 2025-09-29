@@ -40,6 +40,8 @@ export class FetcherFeature extends Feature {
     console.log({ projectRootDir, dotConfig });
     this._jsonPath =
       Deno.env.get("DENO_ENV") === "development" ? projectRootDir : homeDir;
+
+    this.register.bind(this);
   }
 
   async register(_: Application) {
@@ -141,11 +143,12 @@ export class FetcherFeature extends Feature {
         return availableLoc;
       }),
     );
-    await Promise.allSettled(
+    const equipmentData = await Promise.allSettled(
       equipment.map(async (eqp) => {
-        const availableEqp = await Location.findOne({
+        const availableEqp = await Equipment.findOne({
           where: {
             svr_id: eqp.id,
+            uuid: eqp.uuid,
           },
           logging: false,
         });
@@ -181,6 +184,7 @@ export class FetcherFeature extends Feature {
         return availableEqp;
       }),
     );
+    console.log(`Inserted ${equipmentData.length} data of equipment`);
     // const eqp = await this.models.Equipment.findAll();
     // console.log(eqp, data);
   }

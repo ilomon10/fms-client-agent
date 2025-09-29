@@ -17,6 +17,7 @@ import {
   EquipmentSetting,
   SiteSettings,
 } from "./types/index.ts";
+import { cors, CorsOptions } from "@momiji/cors";
 
 export { HTTP_Router as Router };
 
@@ -48,6 +49,11 @@ function isListener(obj: unknown): obj is EventListener {
   return obj instanceof EventListener;
 }
 
+const corsOptions: CorsOptions = {
+  origin: "*",
+  // type
+};
+
 export class Application {
   private _http = new HTTP_Server();
   private _router = new HTTP_Router();
@@ -69,6 +75,10 @@ export class Application {
     this._loadFMSConfig();
     this.registerCore();
     this.emitter = new EventEmitter().emitter;
+    const corsOpt = cors(corsOptions);
+    // @ts-ignore: maybe the dev of the lib forgot to implement new type infer
+    this._http.use(corsOpt);
+    // this._http.use();
   }
 
   public configure(
