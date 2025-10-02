@@ -20,7 +20,7 @@ export interface EventLogModel
   code: string;
   type: string;
   status: string;
-  timestamp: Date;
+  timestamp: string;
   hourMeter: number;
   created_by: string;
   created_at: Date;
@@ -85,6 +85,8 @@ export const createEventLogModel = (sequelize: Sequelize): EventLogInstance => {
         plural: "event-logs",
         singular: "event-log",
       },
+      modelName: "EventLog",
+      tableName: "event-logs",
     },
   );
 };

@@ -12,7 +12,6 @@ import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
 import { internalEvents } from "../consts/index.ts";
 import { SessionModel } from "../schemas/session.sequelize.ts";
 import { isAxiosError } from "axios";
-import { LocationModel } from "../schemas/location.sequelize.ts";
 
 export class FetchDataListener extends EventListener {
   name = "fetch-data";
@@ -109,6 +108,7 @@ export class FetchDataListener extends EventListener {
               material_id: data.material_id,
               job_type: data.job_type,
               is_active: true,
+              operator_name: data.operator_name ?? "-",
               shift: data.shift,
             });
           }
@@ -168,10 +168,23 @@ export class FetchDataListener extends EventListener {
   }
 
   private notifyFrontend(app: Application) {
-    this._models.Session.addHook("afterCreate", (session) => {
-      app.ioUse((socket) => {
-        socket.on("connection", (io) => {
+    let timeoutId: number | null = null;
+    app.ioUse((socket) => {
+      socket.on("connection", (io) => {
+        if (timeoutId !== null) clearTimeout(timeoutId);
+        if (this._session === null) {
+          timeoutId = setTimeout(() => {
+            console.log("[info]: requesting auth data from gridlock");
+            io.emit(internalEvents.AUTH, { request: true, reason: "restart" });
+          }, 300);
+        }
+
+        this._models.Session.addHook("afterCreate", (session) => {
           io.emit(internalEvents.AUTH, session.toJSON());
+        });
+
+        this._models.Session.addHook("afterUpdate", (session) => {
+          io.emit(internalEvents.AUTH_UPDATE, session.toJSON());
         });
       });
     });

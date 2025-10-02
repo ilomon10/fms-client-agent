@@ -72,8 +72,9 @@ export default async function (options?: InitializeOptions) {
             apiKey: options?.initialApiKey ?? "",
           },
           gps: {
-            type: "serialport",
+            type: "gpspipe",
             path: "/dev/ttyACM0",
+            emulate: false,
           },
           can: {
             type: "network",

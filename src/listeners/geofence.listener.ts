@@ -11,11 +11,13 @@ import { EventUpdateData } from "../handlers/socket.handler.ts";
 import type {
   CycleSettingAttributes,
   CycleSettingItem,
+  EventTrigger,
   LocationTrigger,
 } from "../types/index.ts";
 import { Feature } from "geojson";
 import { Point } from "geojson";
 import { GeoJsonProperties } from "geojson";
+import { GGA } from "gps";
 
 type SessionEventData = {
   session: InferAttributes<SessionModel, { omit?: never }>;
@@ -42,6 +44,9 @@ export class GeoFenceListener extends EventListener {
   private _lastUpdated: number = 0;
   private router = new Router();
   private _geofenceStarted: boolean = false;
+  private currentEventTrigger: EventTrigger | null = null;
+  private tracking: boolean = false;
+  private distance_to_location: number = 0;
 
   constructor() {
     super();
@@ -139,29 +144,30 @@ export class GeoFenceListener extends EventListener {
     });
 
     this.router.get("/api/geofence", (ctx) => {
-      ctx.response.body = {
-        loading_location: this.loadingLoc ?? {},
-        dumping_location: this.dumpingLoc ?? {},
-        last_updated: this._lastUpdated,
-        session: this._session,
-        geofence_started: this._geofenceStarted,
-      };
+      ctx.response.body = { data: this.getStats() };
     });
 
     app.httpUse(this.router.routes());
 
     app.ioUse((io) => {
       io.on("connection", (socket) => {
-        event.on(internalEvents.GPS_DATA, (gps: StateType) => {
-          if (typeof gps.GGA === "undefined" || gps.GGA === null) return;
+        event.on(internalEvents.GPS_DATA, (gps: GGA) => {
+          if (
+            typeof gps.lat === "undefined" ||
+            gps.lat === null ||
+            gps.lon === null
+          )
+            return;
           if (this._session === null) return;
+
           if (this._session.session.equipment_type !== "Truck") return;
-          const currentCoords = turf.point([gps.GGA.lon, gps.GGA?.lat]);
+          const currentCoords = turf.point([gps.lon, gps.lat]);
 
           const nextEventTrigger = this.getNextCycleEventTriggers();
           if (typeof nextEventTrigger === "undefined") return;
           const trigger = this.getEventGPSTrigger(nextEventTrigger);
           if (typeof trigger === "undefined") return;
+          this.currentEventTrigger = trigger;
           const radius = this.getRadiusFromProperties(trigger);
           if (radius === null) return;
           if (
@@ -177,23 +183,40 @@ export class GeoFenceListener extends EventListener {
               ).geojson.coordinates,
             );
 
+            this.tracking = true;
+
             const result = this.calculateGeofence({
               condition: trigger.condition,
               location: locationCoords,
               radius,
               currentPosition: currentCoords,
             });
+            this.distance_to_location = result.distance;
             const canContinue = this.canContinue();
             if (result.inside && !this._emitted && canContinue) {
               this._emitted = true;
               socket.emit(gridlockEvents.NEXT_EVENT, { condition: "next" });
             }
+            socket.emit(internalEvents.GEOFENCE_UPDATE, this.getStats());
           }
 
           // const geofenceRule =
         });
       });
     });
+  }
+
+  private getStats() {
+    return {
+      loading_location: this.loadingLoc ?? {},
+      dumping_location: this.dumpingLoc ?? {},
+      last_updated: this._lastUpdated,
+      session: this._session,
+      geofence_started: this._geofenceStarted,
+      tracking: this.tracking,
+      distance_to_location: this.distance_to_location,
+      current_trigger: this.currentEventTrigger,
+    };
   }
 
   private canContinue() {

@@ -7,8 +7,8 @@ import {
   CreationOptional,
   DataTypes,
   NonAttribute,
-} from "npm:sequelize";
-import type { Point } from "npm:geojson";
+} from "sequelize";
+import type { Point } from "geojson";
 import { LocationGeoJSONProperties, LocationType } from "../types/index.ts";
 
 export interface LocationModel
@@ -41,8 +41,8 @@ export const createLocationModel = (sequelize: Sequelize) => {
     "Locations",
     {
       id: {
-        type: DataTypes.INTEGER,
         autoIncrement: true,
+        type: DataTypes.INTEGER,
         unique: true,
         primaryKey: true,
       },
@@ -73,6 +73,10 @@ export const createLocationModel = (sequelize: Sequelize) => {
       },
       created_by: {
         type: DataTypes.STRING(400),
+        allowNull: true,
+      },
+      properties: {
+        type: DataTypes.JSON,
         allowNull: true,
       },
       created_at: DataTypes.DATE,

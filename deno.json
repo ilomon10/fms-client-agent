@@ -15,7 +15,7 @@
     "@turf/turf": "npm:@turf/turf@^7.2.0",
     "@valkey/valkey-glide": "npm:@valkey/valkey-glide@^2.0.1",
     "axios": "npm:axios@^1.11.0",
-    "dayjs": "npm:dayjs@^1.11.13",
+    "dayjs": "npm:dayjs@^1.11.18",
     "geojson": "npm:geojson@^0.5.0",
     "gps": "npm:gps@^0.7.4",
     "ink": "npm:ink@^6.0.1",

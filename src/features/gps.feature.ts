@@ -5,9 +5,10 @@ import os from "node:os";
 import type NetworkFeature from "./network.feature.ts";
 import { internalEvents } from "../consts/index.ts";
 
-type GpsConfigType = {
+export type GpsConfigType = {
   path: string;
   type: "serialport" | "gpspipe";
+  emulate: boolean;
 };
 
 const os_platform = os.platform();
@@ -25,6 +26,7 @@ export default class GpsFeature extends Feature {
     this.config = {
       type: "serialport",
       path: os_platform == "win32" ? "COM11" : "/dev/ttyACM0",
+      emulate: false,
     };
   }
 
@@ -78,7 +80,6 @@ export default class GpsFeature extends Feature {
       gps.on("data:GGA", (data) => {
         if (data) {
           const result = this.get();
-          app.emitter.emit(internalEvents.GPS_DATA, data);
           io.emit("/api/gps:get", result);
           io.emit("onMove", {
             network: {
@@ -95,6 +96,7 @@ export default class GpsFeature extends Feature {
           if (result.is_fixed) {
             io.emit("/api/gps/fixed:get", result);
           }
+          app.emitter.emit(internalEvents.GPS_DATA, data);
         }
       });
     });

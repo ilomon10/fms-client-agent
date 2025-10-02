@@ -57,7 +57,7 @@
     "npm:@valkey/valkey-glide@^2.0.1": "2.0.1",
     "npm:axios@*": "1.11.0",
     "npm:axios@^1.11.0": "1.11.0",
-    "npm:dayjs@^1.11.13": "1.11.13",
+    "npm:dayjs@^1.11.18": "1.11.18",
     "npm:geojson@*": "0.5.0",
     "npm:geojson@0.5": "0.5.0",
     "npm:gps@~0.7.4": "0.7.4",
@@ -2119,8 +2119,8 @@
     "d3-voronoi@1.1.2": {
       "integrity": "sha512-RhGS1u2vavcO7ay7ZNAPo4xeDh/VYeGof3x5ZLJBQgYhLegxr3s5IykvWmJ94FTU6mcbtp4sloqZ54mP6R4Utw=="
     },
-    "dayjs@1.11.13": {
-      "integrity": "sha512-oaMBel6gjolK862uaPQOVTA7q3TZhuSvuMQAAglQDOWYO9A91IrAOUJEyKVlqJlHE0vq5p5UXxzdPfMH/x6xNg=="
+    "dayjs@1.11.18": {
+      "integrity": "sha512-zFBQ7WFRvVRhKcWoUh+ZA1g2HVgUbsZm9sbddh8EC5iv93sui8DVVz1Npvz+r6meo9VKfa8NyLWBsQK1VvIKPA=="
     },
     "debug@4.4.1": {
       "integrity": "sha512-KcKCqiftBJcZr++7ykoDIEwSa3XWowTfNPo92BYxjXiyYEVrUQh2aLyhxBCwww+heortUFxEJYcRzosstTEBYQ==",
@@ -2999,7 +2999,7 @@
       "npm:@types/react@19",
       "npm:@valkey/valkey-glide@^2.0.1",
       "npm:axios@^1.11.0",
-      "npm:dayjs@^1.11.13",
+      "npm:dayjs@^1.11.18",
       "npm:geojson@0.5",
       "npm:gps@~0.7.4",
       "npm:ink@^6.0.1",
