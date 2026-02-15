@@ -1,12 +1,18 @@
 import { Application } from "../app.ts";
 import { Feature, FeatureStatus } from "../feature.ts";
 import { Fetcher } from "../lib/fetcher/fetcher.ts";
-import {
+import type {
+  CycleSettingAttributes,
   EquipmentAttributes,
+  EventAttributes,
   LocationAttributes,
   OkResponse,
+  SiteSettings,
 } from "../types/index.ts";
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
+import path from "node:path";
+import { isDirExists } from "../helpers/dir.ts";
+import { performance } from "node:perf_hooks";
 
 export type ServerConfig = {
   host: string;
@@ -19,34 +25,107 @@ export class FetcherFeature extends Feature {
   public status: FeatureStatus;
   private baseUrl: string = "";
   private models: ModelInstances;
+  private _jsonPath: string;
 
   constructor() {
     super();
     this.status = "OK";
     this.models = new LocalModels({ sync: false }).models;
+    const homeDir = Deno.env.get("HOME") ?? "";
+    const dotConfig = path.resolve(homeDir, ".config", "tracker");
+    if (!isDirExists(dotConfig)) {
+      Deno.mkdirSync(dotConfig);
+    }
+    const projectRootDir = path.resolve("./");
+    console.log({ projectRootDir, dotConfig });
+    this._jsonPath =
+      Deno.env.get("DENO_ENV") === "development" ? projectRootDir : homeDir;
+
+    this.register.bind(this);
   }
 
   async register(_: Application) {
     const serverConfig = _.get<ServerConfig>("server");
     if (typeof serverConfig === "undefined") return;
+    // console.log(this._jsonPath);
 
     this.baseUrl = `http://${serverConfig.host}:${serverConfig.port}`;
     const fetcher = new Fetcher({
       baseUrl: this.baseUrl,
       apiKey: serverConfig.apiKey,
     });
+    let start = performance.now();
     const {
       data: { data: equipment },
     } = await fetcher.get<OkResponse<EquipmentAttributes[]>>(
       "/api/apps/equipments",
     );
+    start = performance.now() - start;
+    console.info(
+      "Fetching equipment data completed in:",
+      start.toFixed(2),
+      "ms",
+    );
+    start = performance.now();
     const {
       data: { data: locations },
     } = await fetcher.get<OkResponse<Array<LocationAttributes>>>(
       "/api/apps/locations",
     );
+    start = performance.now() - start;
+    console.info(
+      "Fetching locations data completed in:",
+      start.toFixed(2),
+      "ms",
+    );
+    start = performance.now();
+    const {
+      data: { data: events },
+    } =
+      await fetcher.get<OkResponse<Array<EventAttributes>>>("/api/apps/events");
+    start = performance.now() - start;
+    console.info("Fetching events data completed in:", start.toFixed(2), "ms");
+    start = performance.now();
+    const {
+      data: { data: cycleSettings },
+    } = await fetcher.get<OkResponse<CycleSettingAttributes>>(
+      "/api/apps/cycle-settings",
+    );
+    start = performance.now() - start;
+    console.info("Cycle settings data fetched in:", start.toFixed(2), "ms");
+    start = performance.now();
+    const {
+      data: { data: siteSettings },
+    } = await fetcher.get<OkResponse<SiteSettings>>("/api/apps/shifts");
+    start = performance.now() - start;
+    console.info("Site settings data fetched in:", start.toFixed(2), "ms");
 
-    const { Location, Equipment } = this.models;
+    Deno.writeTextFileSync(
+      path.resolve(this._jsonPath, "cycle-settings.json"),
+      JSON.stringify(cycleSettings),
+    );
+    console.info("cycle setting data has been saved to disk");
+
+    Deno.writeTextFileSync(
+      path.resolve(this._jsonPath, "shifts.json"),
+      JSON.stringify(siteSettings),
+    );
+    console.info("shift setting data has been saved to disk");
+
+    const { Location, Equipment, Event } = this.models;
+
+    await Promise.allSettled(
+      events.map(async (event) => {
+        const availableEvent = await Event.findOne({
+          where: { svr_id: event.id },
+        });
+        const { id: svr_id, ...ev } = event;
+        if (availableEvent === null) {
+          return await Event.create({ svr_id, ...ev });
+        }
+        return availableEvent;
+      }),
+    );
 
     await Promise.allSettled(
       locations.map(async (loc) => {
@@ -64,11 +143,12 @@ export class FetcherFeature extends Feature {
         return availableLoc;
       }),
     );
-    await Promise.allSettled(
+    const equipmentData = await Promise.allSettled(
       equipment.map(async (eqp) => {
-        const availableEqp = await Location.findOne({
+        const availableEqp = await Equipment.findOne({
           where: {
             svr_id: eqp.id,
+            uuid: eqp.uuid,
           },
           logging: false,
         });
@@ -104,6 +184,7 @@ export class FetcherFeature extends Feature {
         return availableEqp;
       }),
     );
+    console.log(`Inserted ${equipmentData.length} data of equipment`);
     // const eqp = await this.models.Equipment.findAll();
     // console.log(eqp, data);
   }

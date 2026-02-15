@@ -2,5 +2,10 @@ node_modules
 target
 local.db
 config.json
+equipment.json
+cycle-settings.json
+shifts.json
 .histfile
 *.db
+*.db-journal
+temp-type.ts

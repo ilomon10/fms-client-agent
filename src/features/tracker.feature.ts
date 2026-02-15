@@ -8,9 +8,13 @@ import * as turf from "npm:@turf/turf";
 import type NetworkFeature from "./network.feature.ts";
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
 import { getNearestLocations } from "../helpers/geofence.ts";
-import { memoize } from "../helpers/memo.ts";
+import axios, { isAxiosError } from "axios";
+import { DelayedData } from "../lib/tracker/delayed-data.ts";
+import { internalEvents } from "../consts/index.ts";
+// import { RedisService } from "../services/redis.service.ts";
+// import {RedisService} from '../services/redis.service.ts'
 
-type TrackerConfigType = {
+export type TrackerConfigType = {
   host: string;
 };
 
@@ -21,22 +25,28 @@ export default class TrackerFeature extends Feature {
   public router = new Router();
 
   private _trackerClient: TrackerClient | null = null;
+  private _delayedTrackerClient: DelayedData;
   private _models: ModelInstances;
 
-  constructor() {
+  constructor(app: Application) {
     super();
     this.status = "OK";
     this.config = {
       host: "127.0.0.1",
     };
     const sync = Deno.env.get("DENO_ENV") === "development";
+    const config = Object.assign({}, app.get<TrackerConfigType>(this.name));
+
     this._models = new LocalModels({ sync }).models;
+    this._delayedTrackerClient = new DelayedData(config);
+    // this._redis = new RedisService();
   }
 
   async register(app: Application) {
     let gps: GPS | null = null;
     this.config = Object.assign({}, app.get<TrackerConfigType>(this.name));
 
+    const hostname = Deno.hostname();
     this._trackerClient = new TrackerClient(this.config.host);
     if (this._trackerClient === null) {
       throw new Error(`Tracker Client not available`);
@@ -62,13 +72,39 @@ export default class TrackerFeature extends Feature {
 
     if (!gps) return;
     const locations = await Location.findAll({ logging: false });
+    // const lastData = await gps.get_state_async();
 
-    app.ioUse((io) => {
+    app.ioUse((_io) => {
       const network = app.feature("network") as NetworkFeature;
-      gps.on("data:GGA", async (data) => {
+      app.emitter.on(internalEvents.GPS_DATA, async (data) => {
+        const currentDate = new Date();
         if (data) {
           // console.log("here inside if data");
+
           const result = gps.get_state();
+          const now = Date.now();
+
+          if (now % 60 === 0) {
+            try {
+              await this._delayedTrackerClient.sendData();
+              await this._trackerClient?.push({
+                ...result,
+                lat: data.lat,
+                lon: data.lon,
+                alt: result.alt,
+                hostname,
+                timestamp: currentDate.toISOString(),
+                ip: network.get()?.address,
+                mac: network.get()?.mac,
+              });
+              console.log("sending data");
+            } catch (e) {
+              if (isAxiosError(e)) {
+                console.log(`[axios-err]: ${e.message}`);
+              }
+            }
+            // this.push()
+          }
 
           if (typeof result.speed !== "undefined" && result.speed > 0.3) {
             let nearestLocation: string | null = null;
@@ -87,17 +123,27 @@ export default class TrackerFeature extends Feature {
               if (nearestLocations.length > 0) {
                 const [loc] = nearestLocations;
                 nearestLocation = loc.name;
-
                 // console.log("nearest loc:", loc.name);
               }
-              const bb = await this._trackerClient?.push({
+
+              await this._trackerClient?.push({
                 ...result,
                 ip: network.get()?.address,
                 mac: network.get()?.mac,
                 location_name: nearestLocation,
+                hostname,
+                timestamp: currentDate.toISOString(),
               });
-            } catch {
-              // TODO: save to local.db
+            } catch (e) {
+              if (axios.isAxiosError(e)) {
+                // console.log(e);
+                await this._models.DelayedData.create({
+                  ...result,
+                  ip_address: network.get()?.address,
+                  mac_address: network.get()?.mac,
+                  time: currentDate.toISOString(),
+                });
+              }
             }
           }
         }
