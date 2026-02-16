@@ -24,6 +24,10 @@ import {
   createEventLogModel,
   EventLogInstance,
 } from "../../schemas/event-log.sequelize.ts";
+import {
+  createOperatorModel,
+  OperatorInstance,
+} from "../../schemas/operator.sequelize.ts";
 
 const sequelize = new Sequelize({
   dialect: "sqlite",
@@ -37,6 +41,7 @@ export type ModelInstances = {
   Event: EventInstance;
   EventLog: EventLogInstance;
   Location: LocationInstance;
+  Operator: OperatorInstance;
   Session: SessionIntance;
 };
 
@@ -59,6 +64,7 @@ export class LocalModels {
       Event: createEventModel(sequelize),
       EventLog: createEventLogModel(sequelize),
       Location: createLocationModel(sequelize),
+      Operator: createOperatorModel(sequelize),
       Session: createSessionModel(sequelize),
     };
 

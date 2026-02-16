@@ -189,6 +189,10 @@ export class FetcherFeature extends Feature {
     // console.log(eqp, data);
   }
 
+  private async createUserData() {}
+
+  private writeFile(path: string) {}
+
   insertToDB<T>(data: Array<T>) {
     console.log(data);
   }

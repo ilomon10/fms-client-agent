@@ -34,5 +34,6 @@
     "jsxImportSource": "npm:react",
     "jsxImportSourceTypes": "npm:@types/react@^19"
   },
-  "nodeModulesDir": "auto"
+  "nodeModulesDir": "auto",
+  "allowScripts": ["npm:esbuild@0.25.8", "npm:protobufjs@7.5.4", "npm:sqlite3@5.1.7"]
 }

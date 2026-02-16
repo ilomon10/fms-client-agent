@@ -1,4 +1,5 @@
 import type { GeoJSONProperties, Geometry } from "geojson";
+import { UserType, UserPermission } from "../schemas/operator.sequelize.ts";
 
 export type OkResponse<T> = {
   data: T;
@@ -199,6 +200,20 @@ export type SessionAttributes = BaseAttributes & {
   block_request_level: number | null;
   foreman_oracle_number: string | null;
   exca_session_id: number | null;
+};
+
+export type OperatorAttributes = {
+  id: number;
+  name: string;
+  username: string;
+  password: string;
+  oracle_number: string;
+  last_login: string;
+  employee_id: number;
+  type: UserType;
+  permission_json: UserPermission;
+  position: string;
+  department: string;
 };
 
 export type EquipmentSetting = { id: number; uuid: string };
