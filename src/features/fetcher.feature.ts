@@ -7,12 +7,14 @@ import type {
   EventAttributes,
   LocationAttributes,
   OkResponse,
+  OperatorAttributes,
   SiteSettings,
 } from "../types/index.ts";
 import { LocalModels, ModelInstances } from "../lib/db/sequelize.ts";
 import path from "node:path";
 import { isDirExists } from "../helpers/dir.ts";
 import { performance } from "node:perf_hooks";
+import { isNonNullish } from "../helpers/data.ts";
 
 export type ServerConfig = {
   host: string;
@@ -26,6 +28,7 @@ export class FetcherFeature extends Feature {
   private baseUrl: string = "";
   private models: ModelInstances;
   private _jsonPath: string;
+  private apiKey: string = "";
 
   constructor() {
     super();
@@ -41,7 +44,8 @@ export class FetcherFeature extends Feature {
     this._jsonPath =
       Deno.env.get("DENO_ENV") === "development" ? projectRootDir : homeDir;
 
-    this.register.bind(this);
+    this.register = this.register.bind(this);
+    this.pullDataFromServer = this.pullDataFromServer.bind(this);
   }
 
   async register(_: Application) {
@@ -50,71 +54,48 @@ export class FetcherFeature extends Feature {
     // console.log(this._jsonPath);
 
     this.baseUrl = `http://${serverConfig.host}:${serverConfig.port}`;
-    const fetcher = new Fetcher({
-      baseUrl: this.baseUrl,
-      apiKey: serverConfig.apiKey,
-    });
-    let start = performance.now();
+    this.apiKey = serverConfig.apiKey;
+    const dataFromServer = await this.pullDataFromServer();
+    if (!isNonNullish(dataFromServer)) return;
     const {
-      data: { data: equipment },
-    } = await fetcher.get<OkResponse<EquipmentAttributes[]>>(
-      "/api/apps/equipments",
-    );
-    start = performance.now() - start;
-    console.info(
-      "Fetching equipment data completed in:",
-      start.toFixed(2),
-      "ms",
-    );
-    start = performance.now();
-    const {
-      data: { data: locations },
-    } = await fetcher.get<OkResponse<Array<LocationAttributes>>>(
-      "/api/apps/locations",
-    );
-    start = performance.now() - start;
-    console.info(
-      "Fetching locations data completed in:",
-      start.toFixed(2),
-      "ms",
-    );
-    start = performance.now();
-    const {
-      data: { data: events },
-    } =
-      await fetcher.get<OkResponse<Array<EventAttributes>>>("/api/apps/events");
-    start = performance.now() - start;
-    console.info("Fetching events data completed in:", start.toFixed(2), "ms");
-    start = performance.now();
-    const {
-      data: { data: cycleSettings },
-    } = await fetcher.get<OkResponse<CycleSettingAttributes>>(
-      "/api/apps/cycle-settings",
-    );
-    start = performance.now() - start;
-    console.info("Cycle settings data fetched in:", start.toFixed(2), "ms");
-    start = performance.now();
-    const {
-      data: { data: siteSettings },
-    } = await fetcher.get<OkResponse<SiteSettings>>("/api/apps/shifts");
-    start = performance.now() - start;
-    console.info("Site settings data fetched in:", start.toFixed(2), "ms");
+      events,
+      equipments: equipment,
+      locations,
+      siteSettings,
+      cycleSettings,
+      operators,
+    } = dataFromServer;
 
-    Deno.writeTextFileSync(
+    this.writeConfig(
       path.resolve(this._jsonPath, "cycle-settings.json"),
       JSON.stringify(cycleSettings),
     );
     console.info("cycle setting data has been saved to disk");
 
-    Deno.writeTextFileSync(
+    this.writeConfig(
       path.resolve(this._jsonPath, "shifts.json"),
       JSON.stringify(siteSettings),
     );
     console.info("shift setting data has been saved to disk");
 
-    const { Location, Equipment, Event } = this.models;
+    const [, , equipmentData, operatorsData] = await Promise.all([
+      this.findOrCreateLocation(locations),
+      this.findOrCreateEvent(events),
+      this.findOrCreateEquipment(equipment),
+      this.findOrCreateOperator(operators),
+    ]);
+    console.log(`Inserted ${equipmentData.length} data of equipment`);
+    console.log(
+      `There ${operatorsData.length > 1 ? "are" : "is"} ${operatorsData.length} new operators`,
+    );
+    // const eqp = await this.models.Equipment.findAll();
+    // console.log(eqp, data);
+  }
 
-    await Promise.allSettled(
+  private findOrCreateEvent(events: EventAttributes[]) {
+    const { Event } = this.models;
+
+    return Promise.allSettled(
       events.map(async (event) => {
         const availableEvent = await Event.findOne({
           where: { svr_id: event.id },
@@ -126,8 +107,12 @@ export class FetcherFeature extends Feature {
         return availableEvent;
       }),
     );
+  }
 
-    await Promise.allSettled(
+  private findOrCreateLocation(locations: Array<LocationAttributes>) {
+    const { Location } = this.models;
+
+    return Promise.allSettled(
       locations.map(async (loc) => {
         const availableLoc = await Location.findOne({
           where: { svr_id: loc.id },
@@ -143,7 +128,12 @@ export class FetcherFeature extends Feature {
         return availableLoc;
       }),
     );
-    const equipmentData = await Promise.allSettled(
+  }
+
+  private findOrCreateEquipment(equipment: Array<EquipmentAttributes>) {
+    const { Equipment } = this.models;
+
+    return Promise.allSettled(
       equipment.map(async (eqp) => {
         const availableEqp = await Equipment.findOne({
           where: {
@@ -184,14 +174,82 @@ export class FetcherFeature extends Feature {
         return availableEqp;
       }),
     );
-    console.log(`Inserted ${equipmentData.length} data of equipment`);
-    // const eqp = await this.models.Equipment.findAll();
-    // console.log(eqp, data);
   }
 
-  private async createUserData() {}
+  private async pullDataFromServer() {
+    if (this.baseUrl.length === 0 && this.apiKey.length === 0) return null;
 
-  private writeFile(path: string) {}
+    const fetcher = new Fetcher({
+      baseUrl: this.baseUrl,
+      apiKey: this.apiKey,
+    });
+
+    const t0 = performance.now();
+
+    try {
+      const [
+        equipments,
+        locations,
+        events,
+        cycleSettings,
+        siteSettings,
+        operators,
+      ] = await Promise.all([
+        fetcher.get<OkResponse<EquipmentAttributes[]>>("/api/apps/equipments"),
+        fetcher.get<OkResponse<LocationAttributes[]>>("/api/apps/locations"),
+        fetcher.get<OkResponse<Array<EventAttributes>>>("/api/apps/events"),
+        fetcher.get<OkResponse<CycleSettingAttributes>>(
+          "/api/apps/cycle-settings",
+        ),
+        fetcher.get<OkResponse<SiteSettings>>("/api/apps/shifts"),
+        fetcher.get<OkResponse<Array<OperatorAttributes>>>("/api/apps/users"),
+      ]);
+
+      const t1 = performance.now();
+
+      console.log(`Fetched data in ${(t1 - t0).toFixed(2)}ms`);
+
+      return {
+        equipments: equipments.data.data,
+        locations: locations.data.data,
+        events: events.data.data,
+        cycleSettings: cycleSettings.data.data,
+        siteSettings: siteSettings.data.data,
+        operators: operators.data.data,
+      };
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
+  private findOrCreateOperator(operators: Array<OperatorAttributes>) {
+    const { Operator } = this.models;
+
+    return Promise.allSettled(
+      operators.map(async (operator) => {
+        const currentOperator = await Operator.findOne({
+          where: {
+            svr_id: operator.id,
+          },
+        });
+
+        if (isNonNullish(currentOperator)) return currentOperator;
+
+        const { id, ...operatorAttrs } = operator;
+
+        return await Operator.create({
+          svr_id: id,
+          created_by: "System",
+          ...operatorAttrs,
+        });
+      }),
+    );
+  }
+
+  private writeConfig(path: string, content: string) {
+    Deno.writeTextFileSync(path, content);
+  }
 
   insertToDB<T>(data: Array<T>) {
     console.log(data);
