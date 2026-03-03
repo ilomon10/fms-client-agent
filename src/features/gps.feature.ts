@@ -3,10 +3,12 @@ import { Feature, FeatureStatus } from "../feature.ts";
 import GPS from "../lib/gps/gps.ts";
 import os from "node:os";
 import type NetworkFeature from "./network.feature.ts";
+import { internalEvents } from "../consts/index.ts";
 
-type GpsConfigType = {
+export type GpsConfigType = {
   path: string;
   type: "serialport" | "gpspipe";
+  emulate: boolean;
 };
 
 const os_platform = os.platform();
@@ -18,18 +20,17 @@ export default class GpsFeature extends Feature {
   public router = new Router();
   public gps: GPS | null = null;
 
-  constructor(
-    public emulateGPS: boolean = false,
-  ) {
+  constructor(public emulateGPS: boolean = false) {
     super();
     this.status = "OK";
     this.config = {
-      "type": "serialport",
-      "path": os_platform == "win32" ? "COM11" : "/dev/ttyACM0",
+      type: "serialport",
+      path: os_platform == "win32" ? "COM11" : "/dev/ttyACM0",
+      emulate: false,
     };
   }
 
-  register(app: Application) {
+  async register(app: Application) {
     this.config = Object.assign({}, app.get<GpsConfigType>(this.name));
 
     if (this.emulateGPS) {
@@ -43,8 +44,9 @@ export default class GpsFeature extends Feature {
         this.gps = new GPS({
           portPath: this.config.path,
           source: this.config.type,
-          auto: true,
+          // auto: true,
         });
+        await this.gps.start();
         console.log("GPS: OK");
       } catch (err) {
         this.status = "FAIL";
@@ -71,7 +73,7 @@ export default class GpsFeature extends Feature {
     app.httpUse(this.router.routes());
 
     app.ioUse((io) => {
-      io.on('connection', (socket) => {
+      io.on("connection", (socket) => {
         console.log("connect:", socket.id);
       });
       const network = app.feature("network") as NetworkFeature;
@@ -89,10 +91,12 @@ export default class GpsFeature extends Feature {
             lon: result.longitude,
             speed: result.speed,
             time: result.time,
+            fix: result.fixed_type,
           });
           if (result.is_fixed) {
             io.emit("/api/gps/fixed:get", result);
           }
+          app.emitter.emit(internalEvents.GPS_DATA, data);
         }
       });
     });

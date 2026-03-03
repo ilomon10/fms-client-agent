@@ -2,6 +2,7 @@ import serve from "./server.ts";
 import { Command, EnumType } from "@cliffy/command";
 import runTui from "./src/tui.tsx";
 import initialize from "./src/init.ts";
+import { LocalModels } from "./src/lib/db/sequelize.ts";
 
 if (import.meta.main) {
   const serve_command = new EnumType(["start", "stop", "restart"]);
@@ -17,8 +18,18 @@ if (import.meta.main) {
     // Setup Agent
     .command("init")
     .description("Initialize the I/O Agent.")
-    .action(() => {
-      initialize();
+    .option("-p, --port <port:number>", "server port")
+    .option("-h, --host <host:string>", "server host")
+    .option("-K, --apiKey <apiKey:string>", "API Key")
+    // .option("-f, --force <force:boolean>", "sequelize force renew db")
+    .action((options) => {
+      const { port, host, apiKey } = options;
+      // console.log({ apiKey }, options);
+      initialize({
+        initialServerPort: port,
+        initialServer: host,
+        initialApiKey: apiKey,
+      });
     })
     // Update client
     .command("upgrade")
@@ -38,6 +49,16 @@ if (import.meta.main) {
       if (command == "start") {
         serve(options);
       }
+    })
+    .command("sync")
+    .description("Sync DB")
+    .option("-f, --force <force:boolean>", "force renew DB")
+    .action(async (option) => {
+      await new LocalModels({
+        sync: true,
+        force: option.force,
+      }).sync({ force: option.force, alter: true });
+      console.log("Sync completed");
     })
     // TUI
     .command("tui")
